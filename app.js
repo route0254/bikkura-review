@@ -2,7 +2,8 @@ import { normalizeSearchText } from "/lib/search.js";
 import { validateReportPayload } from "/lib/validation.js";
 
 const DATA_INSUFFICIENT_THRESHOLD = 10;
-const state = { stores: [], campaigns: [], campaign: null, stats: null, selectedStoreId: null, lastTrigger: null };
+const STORE_RENDER_BATCH_SIZE = 60;
+const state = { stores: [], campaigns: [], campaign: null, stats: null, selectedStoreId: null, lastTrigger: null, visibleStoreCount: STORE_RENDER_BATCH_SIZE };
 let turnstileWidgetId = null;
 let turnstileLoader = null;
 
@@ -17,6 +18,7 @@ const elements = {
   storeCount: document.querySelector("#store-count"),
   storeStatus: document.querySelector("#store-status"),
   storeList: document.querySelector("#store-list"),
+  storeLoadMore: document.querySelector("#store-load-more"),
   storeDialog: document.querySelector("#store-dialog"),
   storeDialogTitle: document.querySelector("#store-dialog-title"),
   storeDialogBody: document.querySelector("#store-dialog-body"),
@@ -44,6 +46,28 @@ async function fetchJson(url, fallbackUrl) {
     const fallback = await fetch(fallbackUrl);
     if (!fallback.ok) throw error;
     return fallback.json();
+  }
+}
+
+async function fetchAllStores() {
+  try {
+    const stores = [];
+    const seenCursors = new Set();
+    let cursor = null;
+    do {
+      const params = new URLSearchParams({ limit: "100" });
+      if (cursor) params.set("cursor", cursor);
+      const page = await fetchJson(`/api/stores?${params}`);
+      if (Array.isArray(page)) return page;
+      stores.push(...(page.items ?? []));
+      cursor = page.nextCursor;
+      if (!cursor) return stores;
+      if (seenCursors.has(cursor)) throw new Error("店舗一覧のページ情報が重複しています。");
+      seenCursors.add(cursor);
+    } while (cursor);
+    return stores;
+  } catch {
+    return fetchJson("/data/stores.json");
   }
 }
 
@@ -88,18 +112,26 @@ function filteredStores() {
 
 function renderStores() {
   const stores = filteredStores();
+  const visibleStores = stores.slice(0, state.visibleStoreCount);
   elements.searchClear.hidden = !elements.search.value;
-  elements.storeCount.textContent = `${stores.length}店舗を表示`;
+  elements.storeCount.textContent = visibleStores.length < stores.length ? `${visibleStores.length} / ${stores.length}店舗を表示` : `${stores.length}店舗を表示`;
   elements.storeStatus.textContent = state.stores.length ? "" : "現在、表示できる店舗データがありません。";
+  elements.storeLoadMore.hidden = visibleStores.length >= stores.length;
+  elements.storeLoadMore.textContent = `さらに表示（残り${Math.max(0, stores.length - visibleStores.length)}店舗）`;
   if (!stores.length) {
     elements.storeList.innerHTML = `<div class="empty-state"><strong>条件に合う店舗が見つかりませんでした</strong><br>検索語や都道府県を変えてお試しください。</div>`;
     return;
   }
-  elements.storeList.innerHTML = stores.map((store) => {
+  elements.storeList.innerHTML = visibleStores.map((store) => {
     const stats = getStats(store);
     const stateLabel = stats.reportCount < DATA_INSUFFICIENT_THRESHOLD ? "データ不足" : `抽選 ${stats.totalDraws.toLocaleString("ja-JP")}回・当たり ${stats.totalWins.toLocaleString("ja-JP")}回`;
     return `<article class="store-card"><h3>${escapeHtml(store.name)}</h3><p class="store-location">${escapeHtml(store.prefecture)} ${escapeHtml(store.city)}</p><div class="store-meta"><span><strong>${Number(stats.reportCount).toLocaleString("ja-JP")}</strong> 投稿</span><span><strong>${Number(stats.totalDraws).toLocaleString("ja-JP")}</strong> 抽選</span></div><span class="data-state">${escapeHtml(stateLabel)}</span><button class="store-open" type="button" data-store-id="${escapeHtml(store.id)}">詳しく見る →</button></article>`;
   }).join("");
+}
+
+function resetStoreResults() {
+  state.visibleStoreCount = STORE_RENDER_BATCH_SIZE;
+  renderStores();
 }
 
 function populateStoreControls() {
@@ -242,9 +274,10 @@ async function shareStore() {
 }
 
 function bindEvents() {
-  elements.search.addEventListener("input", renderStores);
-  elements.prefecture.addEventListener("change", renderStores);
-  elements.searchClear.addEventListener("click", () => { elements.search.value = ""; elements.search.focus(); renderStores(); });
+  elements.search.addEventListener("input", resetStoreResults);
+  elements.prefecture.addEventListener("change", resetStoreResults);
+  elements.searchClear.addEventListener("click", () => { elements.search.value = ""; elements.search.focus(); resetStoreResults(); });
+  elements.storeLoadMore.addEventListener("click", () => { state.visibleStoreCount += STORE_RENDER_BATCH_SIZE; renderStores(); });
   elements.storeList.addEventListener("click", (event) => { const button = event.target.closest("[data-store-id]"); if (button) openStore(button.dataset.storeId, button); });
   document.addEventListener("click", (event) => {
     const reportButton = event.target.closest("[data-open-report]");
@@ -261,7 +294,7 @@ function bindEvents() {
 async function loadData() {
   try {
     const [campaignData, storeData, stats] = await Promise.all([
-      fetchJson("/api/campaigns", "/data/campaigns.json"), fetchJson("/api/stores?limit=100", "/data/stores.json"), fetchJson("/api/stats", null).catch(() => null),
+      fetchJson("/api/campaigns", "/data/campaigns.json"), fetchAllStores(), fetchJson("/api/stats", null).catch(() => null),
     ]);
     state.campaigns = campaignData.items ?? campaignData;
     state.campaign = state.campaigns[0] ?? null;

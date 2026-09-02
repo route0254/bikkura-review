@@ -113,6 +113,8 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
 .data-state { display: inline-block; margin-top: 11px; color: var(--lavender); font-size: .76rem; font-weight: 700; }
 .store-open { margin-top: 15px; align-self: flex-start; border: 0; background: transparent; color: var(--pink-strong); padding: 0; font-weight: 800; }
 .empty-state { grid-column: 1 / -1; padding: 38px 24px; border: 1px dashed #d9cfd5; border-radius: var(--radius-md); background: rgba(255,255,255,.55); text-align: center; color: var(--muted); }
+.store-load-more { margin: 18px auto 0; }
+.store-load-more[hidden] { display: none; }
 
 .notice { display: grid; grid-template-columns: 34px 1fr; gap: 13px; margin-top: 36px; padding: 21px 23px; border: 1px solid #e3deee; border-radius: var(--radius-md); background: var(--lavender-soft); color: #514a62; }
 .notice-mark { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid #bcb4de; border-radius: 50%; font-family: Georgia, serif; font-weight: 700; }

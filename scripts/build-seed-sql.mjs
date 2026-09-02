@@ -17,7 +17,14 @@ for (const store of stores) {
   const searchText = normalizeSearchText([store.name, store.prefecture, store.city, store.address].join(" "));
   sql.push(`INSERT INTO stores (id, name, prefecture, city, address, latitude, longitude, official_url, active, search_text) VALUES (${quote(store.id)}, ${quote(store.name)}, ${quote(store.prefecture)}, ${quote(store.city)}, ${quote(store.address)}, ${store.latitude ?? "NULL"}, ${store.longitude ?? "NULL"}, ${quote(store.officialUrl)}, ${store.active ? 1 : 0}, ${quote(searchText)}) ON CONFLICT(id) DO UPDATE SET name=excluded.name, prefecture=excluded.prefecture, city=excluded.city, address=excluded.address, latitude=excluded.latitude, longitude=excluded.longitude, official_url=excluded.official_url, active=excluded.active, search_text=excluded.search_text;`);
 }
-sql.push("", "INSERT OR IGNORE INTO store_campaign_stats (store_id, campaign_id) SELECT stores.id, campaigns.id FROM stores CROSS JOIN campaigns;", "PRAGMA optimize;", "");
+const currentStoreIds = stores.map((store) => quote(store.id)).join(", ");
+sql.push(
+  "",
+  `UPDATE stores SET active = 0 WHERE id LIKE 'kura-%' AND id NOT IN (${currentStoreIds});`,
+  "INSERT OR IGNORE INTO store_campaign_stats (store_id, campaign_id) SELECT stores.id, campaigns.id FROM stores CROSS JOIN campaigns WHERE stores.active = 1;",
+  "PRAGMA optimize;",
+  "",
+);
 const next = sql.join("\n");
 const checkOnly = process.argv.includes("--check");
 if (checkOnly) {

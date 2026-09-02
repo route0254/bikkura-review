@@ -8,7 +8,6 @@ test.beforeEach(async ({ page }) => {
 test("トップページを表示し、店舗を検索・絞り込みできる", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "寄せられた結果" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "新宿靖国通り店" })).toBeVisible();
   await page.getByLabel("店舗名・地名").fill("新宿");
   await expect(page.getByRole("heading", { name: "新宿靖国通り店" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "なんば日本橋店" })).toBeHidden();
@@ -18,8 +17,20 @@ test("トップページを表示し、店舗を検索・絞り込みできる",
   await expect(page.getByRole("heading", { name: "新宿靖国通り店" })).toBeHidden();
 });
 
+test("全国店舗を段階表示し、一覧の全店舗を検索できる", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("#store-count")).toHaveText("60 / 552店舗を表示");
+  await expect(page.locator(".store-card")).toHaveCount(60);
+  await page.getByRole("button", { name: /さらに表示/ }).click();
+  await expect(page.locator("#store-count")).toHaveText("120 / 552店舗を表示");
+  await page.getByLabel("店舗名・地名").fill("旭川4条通");
+  await expect(page.getByRole("heading", { name: "旭川4条通店" })).toBeVisible();
+  await expect(page.locator("#store-count")).toHaveText("1店舗を表示");
+});
+
 test("店舗詳細を開閉し、フォーカスを戻す", async ({ page }) => {
   await page.goto("/");
+  await page.getByLabel("店舗名・地名").fill("新宿靖国通り");
   const trigger = page.locator('[data-store-id="kura-664"]');
   await trigger.click();
   await expect(page.getByRole("dialog", { name: "新宿靖国通り店" })).toBeVisible();
