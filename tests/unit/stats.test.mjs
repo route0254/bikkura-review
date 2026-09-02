@@ -16,6 +16,21 @@ test("公開中の投稿だけを集計する", () => {
   assert.equal(summary.usage.plus.reportCount, 0);
 });
 
+test("外部参考情報を100件渡しても利用者投稿統計とランキングを変えない", () => {
+  const user = { sourceType: "user", panelDraws: 10, panelWins: 1, mobileDraws: 0, mobileWins: 0, usageType: "normal", prizeBreakdownStatus: "complete", unknownPrizeCount: 0, prizes: [{ prizeCategoryId: "figure", quantity: 1 }], status: "active" };
+  const external = Array.from({ length: 100 }, (_, index) => ({ ...user, id: `external-${index}`, sourceType: "external", panelDraws: 300, panelWins: 300, prizes: [{ prizeCategoryId: "figure", quantity: 300 }] }));
+  const summary = summarizeReports([user, ...external]);
+  assert.equal(summary.reportCount, 1);
+  assert.equal(summary.totalPanelDraws, 10);
+  assert.equal(summary.completePrizeCount, 1);
+
+  const ranked = rankPrizeReports([
+    { sourceType: "user", storeId: "user-store", storeName: "利用者投稿店", completeReportCount: 5, completePrizeCount: 50, targetPrizeCount: 10 },
+    { sourceType: "external", storeId: "external-store", storeName: "外部情報店", completeReportCount: 100, completePrizeCount: 100, targetPrizeCount: 100 },
+  ]);
+  assert.deepEqual(ranked.map((row) => row.storeId), ["user-store"]);
+});
+
 test("通常とプラスを分離し、完全入力の景品だけを景品別集計に使う", () => {
   const summary = summarizeReports([
     { panelDraws: 20, panelWins: 5, mobileDraws: 0, mobileWins: 0, usageType: "normal", prizeBreakdownStatus: "complete", unknownPrizeCount: 0, prizes: [{ prizeCategoryId: "prize-1", quantity: 5 }], status: "active" },

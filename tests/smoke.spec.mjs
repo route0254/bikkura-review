@@ -133,6 +133,84 @@ test("店舗詳細でカテゴリ割合・全国比較・個別景品割合と�
   await expect(page.locator("#detail-item-prizes")).toContainText("40.0%");
 });
 
+test("店舗詳細で通常投稿と外部参考情報を分離し、0・不明・partial・出典を表示する", async ({ page }) => {
+  await page.route("**/api/stores/kura-664/external-reports?limit=10", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ items: [
+      {
+        id: "external-x", sourceType: "external", visitDate: "2026-08-21", visitDateLabel: null,
+        externalPlatform: "x", externalPlatformLabel: "X", externalUrl: "https://example.com/source",
+        resultPrecision: "partial", usageType: "unknown", totalPrizes: 0, totalPrizesKind: "exact",
+        prizes: [{ id: "figure", name: "フィギュア", quantity: 0, quantityKind: "exact" }], items: [],
+      },
+      {
+        id: "external-tabelog", sourceType: "external", visitDate: null, visitDateLabel: "2026年8月23日頃",
+        externalPlatform: "tabelog", externalPlatformLabel: "食べログ", externalUrl: null,
+        resultPrecision: "partial", usageType: "plus", totalPrizes: null, totalPrizesKind: "unknown",
+        prizes: [{ id: "figure", name: "フィギュア", quantity: 1, quantityKind: "at_least" }],
+        items: [{ id: "figure-chiikawa", name: "ちいかわ", prizeCategoryName: "フィギュア", quantity: 1, quantityKind: "at_least" }],
+      },
+    ] }),
+  }));
+  await page.goto("/");
+  await page.getByLabel("店舗名・地名").fill("新宿靖国通り");
+  await page.locator('[data-store-id="kura-664"]').click();
+  await expect(page.getByRole("heading", { name: "みんなの投稿" })).toBeVisible();
+  const external = page.locator("#external-reports");
+  await expect(page.getByRole("heading", { name: "外部で確認された参考情報" })).toBeVisible();
+  await expect(page.locator(".external-reference-section")).toContainText("全国統計やランキングには含めていません");
+  await expect(external).toContainText("0個");
+  await expect(external).toContainText("不明");
+  await expect(external).toContainText("1個以上");
+  await expect(external).toContainText("一部情報のみ");
+  await expect(external).toContainText("2026年8月23日頃");
+  const source = page.getByRole("link", { name: /出典を見る/ });
+  await expect(source).toHaveAttribute("href", "https://example.com/source");
+  await expect(source).toHaveAttribute("target", "_blank");
+  await expect(source).toHaveAttribute("rel", "noopener noreferrer");
+  await source.focus();
+  await expect(source).toBeFocused();
+  const results = await new AxeBuilder({ page }).include("#store-dialog").analyze();
+  expect(results.violations.filter((violation) => ["serious", "critical"].includes(violation.impact))).toEqual([]);
+});
+
+test("外部参考情報が0件の店舗を中立的に表示し、モバイル幅でも読める", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/stores/kura-547/external-reports?limit=10", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ items: [] }),
+  }));
+  await page.goto("/?store=kura-547");
+  await expect(page.getByRole("dialog", { name: "なんば日本橋店" })).toBeVisible();
+  await expect(page.locator("#external-reports")).toHaveText("この店舗の外部参考情報はありません。");
+});
+
+test("実DBの外部seedを取得しても全国統計とランキングは0件のまま", async ({ request }) => {
+  const [externalResponse, statsResponse, rankingResponse] = await Promise.all([
+    request.get("/api/stores/kura-660/external-reports?limit=10"),
+    request.get("/api/stats"),
+    request.get("/api/rankings/figure"),
+  ]);
+  expect(externalResponse.ok()).toBeTruthy();
+  expect(statsResponse.ok()).toBeTruthy();
+  expect(rankingResponse.ok()).toBeTruthy();
+  const external = await externalResponse.json();
+  const stats = await statsResponse.json();
+  const ranking = await rankingResponse.json();
+  expect(external.items).toHaveLength(1);
+  expect(external.items[0]).toMatchObject({ sourceType: "external", totalPrizes: 9, resultPrecision: "complete" });
+  expect(external.items[0].prizes).toEqual(expect.arrayContaining([
+    expect.objectContaining({ name: "フィギュア", quantity: 0, quantityKind: "exact" }),
+    expect.objectContaining({ name: "缶バッジ", quantity: 3, quantityKind: "exact" }),
+  ]));
+  expect(external.items[0].items).toHaveLength(8);
+  expect(stats.reportCount).toBe(0);
+  expect(stats.totalPrizeCount).toBe(0);
+  expect(ranking.items).toEqual([]);
+});
+
 test("投稿0件とサンプル不足の店舗カードを中立的に表示する", async ({ page }) => {
   await page.route("**/api/stats", (route) => route.fulfill({
     status: 200,

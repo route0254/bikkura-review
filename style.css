@@ -179,6 +179,27 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
 .item-detail-panel ul { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin: 0; padding: 0; list-style: none; }
 .item-detail-panel li { display: flex; justify-content: space-between; gap: 8px; font-size: .8rem; }
 .item-detail-panel strong { color: var(--lavender); }
+.external-reference-section { padding-top: 20px; border-top: 1px solid var(--line); }
+.external-reference-notice { margin: 0 0 12px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--grey-soft); color: var(--muted); font-size: .76rem; line-height: 1.7; }
+#external-reports { display: grid; gap: 10px; }
+.external-report-card { padding: 15px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fff; }
+.external-report-card header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.external-report-card header div { display: grid; gap: 2px; }
+.external-report-card header strong { color: var(--lavender); font-size: .9rem; }
+.external-report-card time, .external-precision { color: var(--muted); font-size: .72rem; }
+.external-precision { padding: 3px 8px; border-radius: 999px; background: var(--grey-soft); white-space: nowrap; }
+.external-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 0; }
+.external-summary div { padding: 9px 10px; border-radius: 10px; background: var(--surface-soft); }
+.external-summary dt { color: var(--muted); font-size: .68rem; }
+.external-summary dd { margin: 2px 0 0; font-size: .84rem; font-weight: 800; }
+.external-breakdown, .external-items ul { display: grid; gap: 5px; margin: 10px 0 0; padding: 0; list-style: none; }
+.external-breakdown li, .external-items li { display: flex; justify-content: space-between; gap: 10px; font-size: .8rem; }
+.external-breakdown strong, .external-items strong { color: var(--lavender); }
+.external-items { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.external-items > span { color: var(--muted); font-size: .7rem; }
+.external-report-card footer { margin-top: 12px; }
+.external-source-link { color: var(--pink-strong); font-size: .78rem; font-weight: 800; }
+.external-source-missing { color: var(--muted); font-size: .72rem; }
 
 .report-dialog { width: min(calc(100% - 24px), 760px); }
 .report-form { padding: 22px; }

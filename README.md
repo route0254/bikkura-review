@@ -31,7 +31,7 @@ pnpm run dev
 
 ## D1
 
-binding名は `DB` です。migrationは `migrations/` の番号順に適用します。既存DBには `0004_prize_items_and_rankings.sql` まで追加適用してください。
+binding名は `DB` です。migrationは `migrations/` の番号順に適用します。既存DBには `0005_external_reference_reports.sql` まで追加適用してください。
 
 ```bash
 pnpm run db:migrate
@@ -53,6 +53,9 @@ pnpm run db:seed
 - `report_prizes`: 投稿と景品区分の個数
 - `report_prize_item_breakdowns`: 投稿・景品カテゴリごとの個別景品内訳状態
 - `report_prize_items`: 投稿と個別景品の個数
+- `external_reports`: 外部公開情報から確認した参考データ。通常投稿とは別テーブルで、店舗未特定は `store_id = NULL`
+- `external_report_prizes`: 外部参考情報のカテゴリ別個数と、正確・以上・不明の区別
+- `external_report_items`: 外部参考情報の個別景品。既存 `prize_items` を参照
 - `store_campaign_stats`: 店舗・キャンペーン単位の集計
 - `store_campaign_usage_stats`: 店舗・キャンペーン・通常／プラス／不明単位の集計
 - `store_campaign_prize_stats`: 店舗・キャンペーン・景品単位の集計
@@ -68,6 +71,7 @@ pnpm run db:seed
 - `GET /api/stores?q=&prefecture=&campaign=&limit=&cursor=`
 - `GET /api/stores/:id?campaign=&period=all|7d`
 - `GET /api/stores/:id/reports?campaign=&limit=`
+- `GET /api/stores/:id/external-reports?campaign=&limit=`
 - `GET /api/stats?campaign=`
 - `GET /api/prize-items?campaign=`
 - `GET /api/rankings/figure?campaign=`
@@ -82,6 +86,24 @@ pnpm run db:seed
 店舗詳細では通常・ビッくらポン！プラス・区分不明を分け、タッチパネル／スマホ注文の内訳を維持して表示します。景品カテゴリ割合、十分な場合の全国投稿データとの数値比較、任意入力された個別景品内訳にも対応します。全期間と直近7日を切り替えられ、7日分はD1で期間集計します。
 
 投稿フォームの店舗選択は、共通の都道府県順で都道府県を選んだ後、その地域の店舗だけを選ぶ2段階方式です。個別景品はカテゴリ個数の下にある「内訳も入力する」から任意入力でき、未入力の既存投稿は `unknown` 相当のまま扱います。
+
+## 外部参考情報
+
+X・Google Maps・食べログ・ブログ等の一般公開情報から確認した構造化データは、`reports` ではなく外部専用テーブルへ保存します。直接投稿の全国・店舗・期間別統計、景品割合、ランキング、risk・BAN判定には一切含めません。店舗詳細を開いた場合だけ専用APIから最大10件を読み込み、投稿本文・投稿者名・アカウントID・画像は保存または転載しません。
+
+元データは `seed/external-reports.json`、生成SQLは `seed/external-reports.sql` です。`externalUrl` が未確認なら `null`、確認済み0個は `0`、不明な数量は `null` と `quantityKind: "unknown"` を使います。URLがある場合はプラットフォーム・URL・店舗の組み合わせで重複を防ぎます。
+
+```bash
+# ローカルD1へ検証・生成・upsert
+pnpm run seed:external
+
+# 本番は検証後に明示的に実行
+node scripts/validate-external-data.mjs
+node scripts/build-external-seed-sql.mjs
+wrangler d1 execute DB --remote --file=seed/external-reports.sql
+```
+
+`evidenceQuality` は公開情報から確認できた具体性をA/B/Cで管理し、`resultPrecision` は `complete` / `partial` / `mention_only` を使います。誤認やリンク切れはJSONの `status` を `hidden` にして再投入します。緊急時は `UPDATE external_reports SET status = 'hidden', updated_at = CURRENT_TIMESTAMP WHERE id = ?` で即時非表示にできます。詳しい採用基準は `docs/EXTERNAL-DATA.md` を参照してください。
 
 ## 投稿の処理
 
@@ -134,7 +156,7 @@ pnpm run build
 3. Firebase AuthenticationでGoogleプロバイダーを有効化
 4. Firebase Authorized domainsへ `review.chiikatsu-map.com` を追加（APIキーを制限している場合は同ドメインも許可）
 5. Cloudflare Pagesに `TURNSTILE_SECRET_KEY`、`RATE_LIMIT_SALT`、`ABUSE_HASH_SALT`、`USER_ID_SECRET` をSecretとして設定
-6. リモートD1へ `0004_prize_items_and_rankings.sql` までmigrationを適用し、最新seedを投入
+6. リモートD1へ `0005_external_reference_reports.sql` までmigrationを適用し、通常seedとexternal seedを投入
 7. Pagesを一度だけ再デプロイ
 8. 匿名投稿、Googleログイン、ログアウト、残り投稿件数、上限到達時の表示を確認
 9. `pending`投稿が公開集計・最近の投稿に含まれないことを確認
@@ -144,7 +166,7 @@ pnpm run build
 
 ## マスタデータ
 
-キャンペーン期間と景品区分は、くら寿司の2026年8月10日付プレスリリースで確認しました。初期景品区分はフィギュア、缶バッジ、アクリルマグネットです。個別景品は本文で名称を確認できるフィギュア5種（ちいかわ、ハチワレ、うさぎ、モモンガ、くりまんじゅう）のみ登録し、名称を確定できない缶バッジ・アクリルマグネット各8種は推測で登録していません。
+キャンペーン期間と景品区分は、くら寿司の2026年8月10日付プレスリリースで確認しました。初期景品区分はフィギュア、缶バッジ、アクリルマグネットです。本文で名称を確認できるフィギュア5種に加え、外部参考情報でカテゴリと名称を明確に確認済みの缶バッジ3種・アクリルマグネット5種を個別景品マスタへ登録しています。カテゴリが確認できない名称は推測で登録しません。
 
 店舗はくら寿司公式の全国店舗一覧から、ビッくらポン！対象外と明記されている「無添蔵」を除く552店舗（47都道府県）を登録しています。店舗IDには公式詳細ページのIDを使い、住所と緯度・経度も公式一覧の値を収録しています。
 
