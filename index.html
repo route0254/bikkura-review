@@ -81,7 +81,12 @@
         <div class="prize-summary" id="prize-summary" hidden></div>
       </section>
 
-      <section class="store-section" aria-labelledby="store-title">
+      <div class="result-view-tabs" role="tablist" aria-label="表示内容">
+        <button id="store-browser-tab" type="button" role="tab" aria-selected="true" aria-controls="store-browser" data-view-tab="stores">店舗を探す</button>
+        <button id="figure-ranking-tab" type="button" role="tab" aria-selected="false" aria-controls="figure-ranking" data-view-tab="ranking" tabindex="-1">フィギュアランキング</button>
+      </div>
+
+      <section id="store-browser" class="store-section result-view-panel" role="tabpanel" aria-labelledby="store-browser-tab" data-view-panel="stores">
         <div class="section-heading store-heading">
           <div>
             <p class="eyebrow">店舗を探す</p>
@@ -108,7 +113,7 @@
         <button id="store-load-more" class="button button-secondary store-load-more" type="button" hidden>さらに表示</button>
       </section>
 
-      <section id="figure-ranking" class="ranking-section" aria-labelledby="ranking-title">
+      <section id="figure-ranking" class="ranking-section result-view-panel" role="tabpanel" aria-labelledby="figure-ranking-tab" data-view-panel="ranking" hidden>
         <div class="section-heading">
           <div>
             <p class="eyebrow">利用者投稿データ</p>
@@ -117,7 +122,7 @@
           <p class="section-note">景品内訳をすべて入力した投稿が5件以上、対象景品が50個以上の店舗だけを掲載します。</p>
         </div>
         <p class="ranking-caution">利用者投稿データを集計した参考値です。公式の景品封入率や店舗ごとの実際の提供割合を示すものではありません。</p>
-        <div id="ranking-status" class="status-message" role="status" aria-live="polite">ランキングはこの付近まで移動すると読み込みます。</div>
+        <div id="ranking-status" class="status-message" role="status" aria-live="polite">ランキングタブを開くと読み込みます。</div>
         <ol id="ranking-list" class="ranking-list"></ol>
       </section>
 

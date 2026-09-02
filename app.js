@@ -5,7 +5,7 @@ import { validateReportPayload } from "/lib/validation.js";
 import { getIdToken, initializeAuth, signIn, signOut } from "/auth.js";
 
 const STORE_RENDER_BATCH_SIZE = 60;
-const state = { stores: [], campaigns: [], campaign: null, stats: null, selectedStoreId: null, lastTrigger: null, visibleStoreCount: STORE_RENDER_BATCH_SIZE, auth: { enabled: false, authenticated: false }, posting: null, rankingLoaded: false };
+const state = { stores: [], campaigns: [], campaign: null, stats: null, selectedStoreId: null, lastTrigger: null, visibleStoreCount: STORE_RENDER_BATCH_SIZE, auth: { enabled: false, authenticated: false }, posting: null, rankingLoaded: false, resultView: "stores" };
 let turnstileWidgetId = null;
 let turnstileLoader = null;
 
@@ -38,7 +38,8 @@ const elements = {
   loginButton: document.querySelector("#login-button"),
   logoutButton: document.querySelector("#logout-button"),
   postingStatus: document.querySelector("#posting-status"),
-  rankingSection: document.querySelector("#figure-ranking"),
+  resultViewTabs: [...document.querySelectorAll("[data-view-tab]")],
+  resultViewPanels: [...document.querySelectorAll("[data-view-panel]")],
   rankingStatus: document.querySelector("#ranking-status"),
   rankingList: document.querySelector("#ranking-list"),
 };
@@ -401,15 +402,29 @@ async function loadRanking() {
   }
 }
 
-function initializeRanking() {
-  if (!elements.rankingSection) return;
-  if (!("IntersectionObserver" in window)) { loadRanking(); return; }
-  const observer = new IntersectionObserver((entries) => {
-    if (!entries.some((entry) => entry.isIntersecting)) return;
-    observer.disconnect();
-    loadRanking();
-  }, { rootMargin: "240px" });
-  observer.observe(elements.rankingSection);
+function selectResultView(view, focusTab = false) {
+  if (!elements.resultViewTabs.some((tab) => tab.dataset.viewTab === view)) return;
+  state.resultView = view;
+  elements.resultViewTabs.forEach((tab) => {
+    const selected = tab.dataset.viewTab === view;
+    tab.setAttribute("aria-selected", String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+    if (selected && focusTab) tab.focus();
+  });
+  elements.resultViewPanels.forEach((panel) => {
+    panel.hidden = panel.dataset.viewPanel !== view;
+  });
+  if (view === "ranking") loadRanking();
+}
+
+function handleResultViewKeydown(event) {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  const currentIndex = elements.resultViewTabs.indexOf(event.currentTarget);
+  let nextIndex = event.key === "Home" ? 0 : elements.resultViewTabs.length - 1;
+  if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % elements.resultViewTabs.length;
+  if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + elements.resultViewTabs.length) % elements.resultViewTabs.length;
+  selectResultView(elements.resultViewTabs[nextIndex].dataset.viewTab, true);
 }
 
 function closeStore() {
@@ -527,6 +542,10 @@ async function shareStore() {
 }
 
 function bindEvents() {
+  elements.resultViewTabs.forEach((tab) => {
+    tab.addEventListener("click", () => selectResultView(tab.dataset.viewTab));
+    tab.addEventListener("keydown", handleResultViewKeydown);
+  });
   elements.search.addEventListener("input", resetStoreResults);
   elements.prefecture.addEventListener("change", resetStoreResults);
   elements.searchClear.addEventListener("click", () => { elements.search.value = ""; elements.search.focus(); resetStoreResults(); });
@@ -584,7 +603,8 @@ async function loadData() {
     const sparseStats = new Map((stats?.stores ?? []).map((entry) => [entry.storeId, entry]));
     state.stores = (storeData.items ?? storeData).map((store) => ({ ...store, stats: sparseStats.get(store.id) ?? getStats(store) }));
     state.stats = stats ?? { reportCount: 0, totalDraws: 0, totalWins: 0, totalPrizeCount: 0, completeReportCount: 0, completePrizeCount: 0, prizes: state.campaign?.prizeCategories?.map((prize) => ({ name: prize.name, quantity: 0 })) ?? [], usage: [], stores: [] };
-    renderCampaigns(); renderStats(); populateStoreControls(); renderStores(); initializeRanking();
+    renderCampaigns(); renderStats(); populateStoreControls(); renderStores();
+    if (state.resultView === "ranking") loadRanking();
     const sharedStore = new URLSearchParams(location.search).get("store");
     if (sharedStore) requestAnimationFrame(() => openStore(sharedStore, document.querySelector(`[data-store-id="${CSS.escape(sharedStore)}"]`)));
   } catch { elements.storeStatus.textContent = "店舗データを読み込めませんでした。時間をおいて再度お試しください。"; elements.storeList.innerHTML = ""; renderStats(); }

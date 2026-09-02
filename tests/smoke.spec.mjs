@@ -233,13 +233,31 @@ test("ランキングを遅延取得し、対象店舗の詳細を開ける", as
   }));
   await page.goto("/");
   await expect(page.locator(".store-card").first()).toBeVisible();
+  await expect(page.locator("#store-browser")).toBeVisible();
+  await expect(page.locator("#figure-ranking")).toBeHidden();
   const rankingResponse = page.waitForResponse((response) => response.url().includes("/api/rankings/figure?campaign="));
-  await page.locator("#figure-ranking").scrollIntoViewIfNeeded();
+  await page.getByRole("tab", { name: "フィギュアランキング" }).click();
   await rankingResponse;
+  await expect(page.getByRole("tab", { name: "フィギュアランキング" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#store-browser")).toBeHidden();
+  await expect(page.locator("#figure-ranking")).toBeVisible();
   const rankingButton = page.getByRole("button", { name: /1位.*新宿靖国通り店/ });
   await expect(rankingButton).toBeVisible();
   await rankingButton.click();
   await expect(page.getByRole("dialog", { name: "新宿靖国通り店" })).toBeVisible();
+});
+
+test("表示タブをキーボードで切り替えられる", async ({ page }) => {
+  await page.goto("/");
+  const storeTab = page.getByRole("tab", { name: "店舗を探す" });
+  const rankingTab = page.getByRole("tab", { name: "フィギュアランキング" });
+  await storeTab.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(rankingTab).toBeFocused();
+  await expect(rankingTab).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ArrowLeft");
+  await expect(storeTab).toBeFocused();
+  await expect(page.locator("#store-browser")).toBeVisible();
 });
 
 test("共有URLから店舗詳細を直接開ける", async ({ page }) => {
