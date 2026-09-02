@@ -31,7 +31,7 @@ pnpm run dev
 
 ## D1
 
-binding名は `DB` です。migrationは `migrations/` の番号順に適用します。既存DBには `0003_auth_and_abuse_controls.sql` まで追加適用してください。
+binding名は `DB` です。migrationは `migrations/` の番号順に適用します。既存DBには `0004_prize_items_and_rankings.sql` まで追加適用してください。
 
 ```bash
 pnpm run db:migrate
@@ -47,9 +47,12 @@ pnpm run db:seed
 - `stores`: 店舗マスタ
 - `campaigns`: キャンペーン
 - `prize_categories`: キャンペーンごとの景品区分
+- `prize_items`: キャンペーン・景品カテゴリごとの個別景品。表示名とstable IDを分離
 - `users`: HMAC変換した内部ユーザーIDと利用状態（`active` / `restricted` / `banned`）
 - `reports`: 投稿本体。`active` / `pending` / `hidden`、景品入力状態、最小限の不正対策メタデータを保持
 - `report_prizes`: 投稿と景品区分の個数
+- `report_prize_item_breakdowns`: 投稿・景品カテゴリごとの個別景品内訳状態
+- `report_prize_items`: 投稿と個別景品の個数
 - `store_campaign_stats`: 店舗・キャンペーン単位の集計
 - `store_campaign_usage_stats`: 店舗・キャンペーン・通常／プラス／不明単位の集計
 - `store_campaign_prize_stats`: 店舗・キャンペーン・景品単位の集計
@@ -66,15 +69,19 @@ pnpm run db:seed
 - `GET /api/stores/:id?campaign=&period=all|7d`
 - `GET /api/stores/:id/reports?campaign=&limit=`
 - `GET /api/stats?campaign=`
+- `GET /api/prize-items?campaign=`
+- `GET /api/rankings/figure?campaign=`
 - `GET /api/config`
 - `GET /api/posting-status`
 - `POST /api/reports`
 
 初期表示では静的な `data/stores.json` と、キャンペーン・疎な集計データの2 APIだけを取得します。一覧APIはフォールバック用途でページングし、直近投稿と期間別集計は店舗詳細を開いたときだけ取得します。GETの全国集計・店舗集計は30〜300秒の短いCDNキャッシュを許可しています。投稿直後は表示反映が少し遅れる場合があります。
 
-当選率は5投稿かつ50抽選以上、景品割合は内訳をすべて入力した3投稿かつ景品10個以上を表示条件にしています。景品別集計には `prize_breakdown_status = 'complete'` の投稿だけを使います。
+当選率は5投稿かつ50抽選以上、景品カテゴリ割合は内訳をすべて入力した5投稿かつ景品20個以上を表示条件にしています。個別景品割合はカテゴリ内訳が完全な3投稿かつ10個以上、フィギュア報告割合ランキングはカテゴリ内訳が完全な5投稿かつ景品50個以上を条件にしています。`pending` / `hidden` はいずれの集計にも含めません。
 
-店舗詳細では通常・ビッくらポン！プラス・区分不明を分け、タッチパネル／スマホ注文の内訳を維持して表示します。全期間と直近7日を切り替えられ、7日分はD1で期間集計します。
+店舗詳細では通常・ビッくらポン！プラス・区分不明を分け、タッチパネル／スマホ注文の内訳を維持して表示します。景品カテゴリ割合、十分な場合の全国投稿データとの数値比較、任意入力された個別景品内訳にも対応します。全期間と直近7日を切り替えられ、7日分はD1で期間集計します。
+
+投稿フォームの店舗選択は、共通の都道府県順で都道府県を選んだ後、その地域の店舗だけを選ぶ2段階方式です。個別景品はカテゴリ個数の下にある「内訳も入力する」から任意入力でき、未入力の既存投稿は `unknown` 相当のまま扱います。
 
 ## 投稿の処理
 
@@ -127,7 +134,7 @@ pnpm run build
 3. Firebase AuthenticationでGoogleプロバイダーを有効化
 4. Firebase Authorized domainsへ `review.chiikatsu-map.com` を追加（APIキーを制限している場合は同ドメインも許可）
 5. Cloudflare Pagesに `TURNSTILE_SECRET_KEY`、`RATE_LIMIT_SALT`、`ABUSE_HASH_SALT`、`USER_ID_SECRET` をSecretとして設定
-6. リモートD1へ `0003_auth_and_abuse_controls.sql` までmigrationを適用
+6. リモートD1へ `0004_prize_items_and_rankings.sql` までmigrationを適用し、最新seedを投入
 7. Pagesを一度だけ再デプロイ
 8. 匿名投稿、Googleログイン、ログアウト、残り投稿件数、上限到達時の表示を確認
 9. `pending`投稿が公開集計・最近の投稿に含まれないことを確認
@@ -137,7 +144,7 @@ pnpm run build
 
 ## マスタデータ
 
-キャンペーン期間と景品区分は、くら寿司の2026年8月10日付プレスリリースで確認しました。初期景品区分はフィギュア、缶バッジ、アクリルマグネットです。
+キャンペーン期間と景品区分は、くら寿司の2026年8月10日付プレスリリースで確認しました。初期景品区分はフィギュア、缶バッジ、アクリルマグネットです。個別景品は本文で名称を確認できるフィギュア5種（ちいかわ、ハチワレ、うさぎ、モモンガ、くりまんじゅう）のみ登録し、名称を確定できない缶バッジ・アクリルマグネット各8種は推測で登録していません。
 
 店舗はくら寿司公式の全国店舗一覧から、ビッくらポン！対象外と明記されている「無添蔵」を除く552店舗（47都道府県）を登録しています。店舗IDには公式詳細ページのIDを使い、住所と緯度・経度も公式一覧の値を収録しています。
 

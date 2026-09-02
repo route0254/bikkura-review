@@ -12,6 +12,11 @@ sql.push("-- data/*.json から生成。手動編集しないでください。"
 for (const campaign of campaigns) {
   sql.push(`INSERT INTO campaigns (id, name, starts_on, ends_on, source_url, published) VALUES (${quote(campaign.id)}, ${quote(campaign.name)}, ${quote(campaign.startsOn)}, ${quote(campaign.endsOn)}, ${quote(campaign.sourceUrl)}, 1) ON CONFLICT(id) DO UPDATE SET name=excluded.name, starts_on=excluded.starts_on, ends_on=excluded.ends_on, source_url=excluded.source_url, published=excluded.published;`);
   for (const prize of campaign.prizeCategories) sql.push(`INSERT INTO prize_categories (id, campaign_id, name, sort_order, active) VALUES (${quote(prize.id)}, ${quote(campaign.id)}, ${quote(prize.name)}, ${Number(prize.sortOrder)}, 1) ON CONFLICT(id) DO UPDATE SET name=excluded.name, sort_order=excluded.sort_order, active=excluded.active;`);
+  for (const item of campaign.prizeItems ?? []) {
+    sql.push(`INSERT INTO prize_items (id, campaign_id, prize_category_id, name, sort_order, active) VALUES (${quote(item.id)}, ${quote(campaign.id)}, ${quote(item.prizeCategoryId)}, ${quote(item.name)}, ${Number(item.sortOrder)}, 1) ON CONFLICT(id) DO UPDATE SET campaign_id=excluded.campaign_id, prize_category_id=excluded.prize_category_id, name=excluded.name, sort_order=excluded.sort_order, active=excluded.active;`);
+  }
+  const itemIds = (campaign.prizeItems ?? []).map((item) => quote(item.id));
+  if (itemIds.length) sql.push(`UPDATE prize_items SET active = 0 WHERE campaign_id = ${quote(campaign.id)} AND id NOT IN (${itemIds.join(", ")});`);
 }
 for (const store of stores) {
   const searchText = normalizeSearchText([store.name, store.prefecture, store.city, store.address].join(" "));

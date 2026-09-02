@@ -9,6 +9,13 @@
       { "id": "chiikawa-2026-figure", "name": "フィギュア", "sortOrder": 1 },
       { "id": "chiikawa-2026-can-badge", "name": "缶バッジ", "sortOrder": 2 },
       { "id": "chiikawa-2026-acrylic-magnet", "name": "アクリルマグネット", "sortOrder": 3 }
+    ],
+    "prizeItems": [
+      { "id": "chiikawa-2026-figure-chiikawa", "prizeCategoryId": "chiikawa-2026-figure", "name": "ちいかわ", "sortOrder": 1 },
+      { "id": "chiikawa-2026-figure-hachiware", "prizeCategoryId": "chiikawa-2026-figure", "name": "ハチワレ", "sortOrder": 2 },
+      { "id": "chiikawa-2026-figure-usagi", "prizeCategoryId": "chiikawa-2026-figure", "name": "うさぎ", "sortOrder": 3 },
+      { "id": "chiikawa-2026-figure-momonga", "prizeCategoryId": "chiikawa-2026-figure", "name": "モモンガ", "sortOrder": 4 },
+      { "id": "chiikawa-2026-figure-kurimanju", "prizeCategoryId": "chiikawa-2026-figure", "name": "くりまんじゅう", "sortOrder": 5 }
     ]
   }
 ]

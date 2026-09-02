@@ -75,6 +75,19 @@ function reportInsertStatements({ env, payload, identity, risk, reportId, create
   for (const prize of payload.prizes.filter((item) => item.quantity > 0)) {
     statements.push(env.DB.prepare("INSERT INTO report_prizes (report_id, prize_category_id, quantity) VALUES (?, ?, ?)").bind(reportId, prize.prizeCategoryId, prize.quantity));
   }
+  for (const breakdown of payload.itemBreakdowns ?? []) {
+    if (breakdown.status === "unknown") continue;
+    statements.push(env.DB.prepare(`
+      INSERT INTO report_prize_item_breakdowns (report_id, prize_category_id, status)
+      VALUES (?, ?, ?)
+    `).bind(reportId, breakdown.prizeCategoryId, breakdown.status));
+    for (const item of breakdown.items.filter((entry) => entry.quantity > 0)) {
+      statements.push(env.DB.prepare(`
+        INSERT INTO report_prize_items (report_id, prize_category_id, prize_item_id, quantity)
+        VALUES (?, ?, ?, ?)
+      `).bind(reportId, breakdown.prizeCategoryId, item.prizeItemId, item.quantity));
+    }
+  }
   statements.push(
     env.DB.prepare("INSERT INTO report_fingerprints (fingerprint, report_id, expires_at, created_at) VALUES (?, ?, ?, ?)")
       .bind(fingerprint, reportId, nowSeconds + REPORT_LIMITS.duplicateWindowSeconds, createdAt),
@@ -112,15 +125,17 @@ export async function resolveIdentity(request, env, now) {
 }
 
 async function reportContext(env, payload) {
-  const [store, campaign, prizeRows] = await Promise.all([
+  const [store, campaign, prizeRows, itemRows] = await Promise.all([
     env.DB.prepare("SELECT id FROM stores WHERE id = ? AND active = 1").bind(payload.storeId ?? "").first(),
     env.DB.prepare("SELECT id, starts_on, ends_on FROM campaigns WHERE id = ? AND published = 1").bind(payload.campaignId ?? "").first(),
     env.DB.prepare("SELECT id FROM prize_categories WHERE campaign_id = ? AND active = 1").bind(payload.campaignId ?? "").all(),
+    env.DB.prepare("SELECT id, prize_category_id FROM prize_items WHERE campaign_id = ? AND active = 1").bind(payload.campaignId ?? "").all(),
   ]);
   return {
     storeIds: new Set(store ? [store.id] : []),
     campaign: campaign ? { id: campaign.id, startsOn: campaign.starts_on, endsOn: campaign.ends_on } : null,
     prizeCategoryIds: new Set(prizeRows.results.map((row) => row.id)),
+    prizeItems: new Map(itemRows.results.map((row) => [row.id, { prizeCategoryId: row.prize_category_id }])),
     today: todayInJapan(),
   };
 }

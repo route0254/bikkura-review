@@ -1,10 +1,10 @@
-import { normalizeSearchText } from "/lib/search.js";
-import { hasEnoughPrizeData, hasEnoughRateData } from "/lib/stats.js";
+import { filterStoresByPrefecture, sortPrefectures } from "/lib/prefectures.js";
+import { hasEnoughItemData, hasEnoughPrizeData, hasEnoughRateData, prizeShares } from "/lib/stats.js";
 import { validateReportPayload } from "/lib/validation.js";
 import { getIdToken, initializeAuth, signIn, signOut } from "/auth.js";
 
 const STORE_RENDER_BATCH_SIZE = 60;
-const state = { stores: [], campaigns: [], campaign: null, stats: null, selectedStoreId: null, lastTrigger: null, visibleStoreCount: STORE_RENDER_BATCH_SIZE, auth: { enabled: false, authenticated: false }, posting: null };
+const state = { stores: [], campaigns: [], campaign: null, stats: null, selectedStoreId: null, lastTrigger: null, visibleStoreCount: STORE_RENDER_BATCH_SIZE, auth: { enabled: false, authenticated: false }, posting: null, rankingLoaded: false };
 let turnstileWidgetId = null;
 let turnstileLoader = null;
 
@@ -25,6 +25,7 @@ const elements = {
   storeDialogBody: document.querySelector("#store-dialog-body"),
   reportDialog: document.querySelector("#report-dialog"),
   reportForm: document.querySelector("#report-form"),
+  reportPrefecture: document.querySelector("#report-prefecture"),
   reportStore: document.querySelector("#report-store"),
   reportCampaign: document.querySelector("#report-campaign"),
   visitDate: document.querySelector("#visit-date"),
@@ -36,6 +37,9 @@ const elements = {
   loginButton: document.querySelector("#login-button"),
   logoutButton: document.querySelector("#logout-button"),
   postingStatus: document.querySelector("#posting-status"),
+  rankingSection: document.querySelector("#figure-ranking"),
+  rankingStatus: document.querySelector("#ranking-status"),
+  rankingList: document.querySelector("#ranking-list"),
 };
 
 function renderAuth(authState) {
@@ -125,7 +129,7 @@ function renderCampaigns() {
     elements.campaignSelect.value = state.campaign.id;
     elements.campaignTitle.textContent = state.campaign.name;
     elements.reportCampaign.value = state.campaign.id;
-    renderPrizeFields(state.campaign.prizeCategories ?? []);
+    renderPrizeFields(state.campaign.prizeCategories ?? [], state.campaign.prizeItems ?? []);
   }
 }
 
@@ -150,12 +154,7 @@ function renderStats() {
 }
 
 function filteredStores() {
-  const query = normalizeSearchText(elements.search.value);
-  const prefecture = elements.prefecture.value;
-  return state.stores.filter((store) => {
-    const haystack = normalizeSearchText([store.name, store.prefecture, store.city, store.address].join(" "));
-    return (!query || haystack.includes(query)) && (!prefecture || store.prefecture === prefecture);
-  });
+  return filterStoresByPrefecture(state.stores, elements.prefecture.value, elements.search.value);
 }
 
 function renderStores() {
@@ -172,12 +171,13 @@ function renderStores() {
   }
   elements.storeList.innerHTML = visibleStores.map((store) => {
     const stats = getStats(store);
-    const stateLabel = stats.reportCount === 0
-      ? "まだデータがありません"
-      : hasEnoughRateData(stats)
-        ? `抽選 ${stats.totalDraws.toLocaleString("ja-JP")}回・当たり ${stats.totalWins.toLocaleString("ja-JP")}回`
-        : "データ不足";
-    return `<article class="store-card"><h3>${escapeHtml(store.name)}</h3><p class="store-location">${escapeHtml(store.prefecture)} ${escapeHtml(store.city)}</p><div class="store-meta"><span><strong>${Number(stats.reportCount).toLocaleString("ja-JP")}</strong> 投稿</span><span><strong>${Number(stats.totalDraws).toLocaleString("ja-JP")}</strong> 抽選</span></div><span class="data-state">${escapeHtml(stateLabel)}</span><button class="store-open" type="button" data-store-id="${escapeHtml(store.id)}">詳しく見る →</button></article>`;
+    const enoughPrizeData = hasEnoughPrizeData(stats);
+    const shares = prizeShares(stats.prizes, stats.completePrizeCount);
+    const prizeSummary = enoughPrizeData
+      ? `<div class="store-prize-summary" aria-label="景品報告割合">${shares.map((prize) => `<span>${escapeHtml(prize.name)} <strong>${(prize.share * 100).toFixed(0)}%</strong></span>`).join("")}</div>`
+      : `<p class="store-data-note">${stats.reportCount === 0 ? "まだ投稿がありません。最初の結果を教えてください。" : "まだデータが少ないです。"}</p>`;
+    const action = `<div class="store-card-actions"><button class="store-open" type="button" data-store-id="${escapeHtml(store.id)}">結果を見る →</button>${stats.reportCount === 0 ? `<button class="store-open store-post" type="button" data-open-report data-store="${escapeHtml(store.id)}">結果を投稿</button>` : ""}</div>`;
+    return `<article class="store-card"><h3>${escapeHtml(store.name)}</h3><p class="store-location">${escapeHtml(store.prefecture)} ${escapeHtml(store.city)}</p><div class="store-meta"><span><strong>${Number(stats.reportCount).toLocaleString("ja-JP")}</strong> 投稿</span><span><strong>${Number(stats.totalDraws).toLocaleString("ja-JP")}</strong> 抽選</span></div>${prizeSummary}${action}</article>`;
   }).join("");
 }
 
@@ -187,13 +187,33 @@ function resetStoreResults() {
 }
 
 function populateStoreControls() {
-  const prefectures = [...new Set(state.stores.map((store) => store.prefecture))].sort((a, b) => a.localeCompare(b, "ja"));
+  const prefectures = sortPrefectures(state.stores.map((store) => store.prefecture));
   elements.prefecture.insertAdjacentHTML("beforeend", prefectures.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join(""));
-  elements.reportStore.insertAdjacentHTML("beforeend", state.stores.map((store) => `<option value="${escapeHtml(store.id)}">${escapeHtml(store.prefecture)}｜${escapeHtml(store.name)}</option>`).join(""));
+  elements.reportPrefecture.insertAdjacentHTML("beforeend", prefectures.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join(""));
 }
 
-function renderPrizeFields(prizes) {
-  elements.prizeFields.innerHTML = prizes.map((prize) => `<label class="field" for="prize-${escapeHtml(prize.id)}"><span>${escapeHtml(prize.name)}</span><input id="prize-${escapeHtml(prize.id)}" name="prize:${escapeHtml(prize.id)}" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>`).join("");
+function updateReportStoreOptions(prefecture, selectedStoreId = "") {
+  const stores = filterStoresByPrefecture(state.stores, prefecture);
+  elements.reportStore.disabled = !prefecture;
+  elements.reportStore.innerHTML = prefecture
+    ? `<option value="">店舗を選択してください</option>${stores.map((store) => `<option value="${escapeHtml(store.id)}">${escapeHtml(store.name)}</option>`).join("")}`
+    : `<option value="">都道府県を選択してください</option>`;
+  if (selectedStoreId && stores.some((store) => store.id === selectedStoreId)) elements.reportStore.value = selectedStoreId;
+}
+
+function renderPrizeFields(prizes, items) {
+  elements.prizeFields.innerHTML = prizes.map((prize) => {
+    const prizeItems = items.filter((item) => item.prizeCategoryId === prize.id);
+    const panelId = `item-breakdown-${prize.id}`;
+    return `<article class="prize-entry" data-prize-category="${escapeHtml(prize.id)}">
+      <label class="field" for="prize-${escapeHtml(prize.id)}"><span>${escapeHtml(prize.name)}</span><span class="quantity-input"><input id="prize-${escapeHtml(prize.id)}" name="prize:${escapeHtml(prize.id)}" type="number" min="0" max="300" inputmode="numeric" value="0" required><small>個</small></span></label>
+      ${prizeItems.length ? `<button class="item-breakdown-toggle" type="button" data-item-toggle="${escapeHtml(prize.id)}" aria-expanded="false" aria-controls="${escapeHtml(panelId)}">内訳も入力する</button>
+      <div id="${escapeHtml(panelId)}" class="item-breakdown-panel" data-item-panel="${escapeHtml(prize.id)}" hidden>
+        <div class="item-input-grid">${prizeItems.map((item) => `<label class="field" for="item-${escapeHtml(item.id)}"><span>${escapeHtml(item.name)}</span><span class="quantity-input"><input id="item-${escapeHtml(item.id)}" name="item:${escapeHtml(prize.id)}:${escapeHtml(item.id)}" type="number" min="0" max="300" inputmode="numeric" value="0"><small>個</small></span></label>`).join("")}</div>
+        <p class="item-breakdown-status" data-item-status="${escapeHtml(prize.id)}" aria-live="polite">カテゴリ個数を入力すると完全性を確認します。</p>
+      </div>` : ""}
+    </article>`;
+  }).join("");
 }
 
 async function openStore(storeId, trigger) {
@@ -203,7 +223,7 @@ async function openStore(storeId, trigger) {
   state.lastTrigger = trigger ?? document.activeElement;
   const stats = getStats(store);
   elements.storeDialogTitle.textContent = store.name;
-  elements.storeDialogBody.innerHTML = `<p class="detail-address">${escapeHtml(store.address)}</p><div class="period-tabs" aria-label="集計期間"><button type="button" data-store-period="all" aria-pressed="true">全期間</button><button type="button" data-store-period="7d" aria-pressed="false">直近7日</button></div><p id="detail-period-note" class="section-note section-note-left"></p><div class="detail-stats"><div class="detail-stat"><span>投稿</span><strong id="detail-report-count">${stats.reportCount}</strong>件</div><div class="detail-stat"><span>抽選</span><strong id="detail-draw-count">${stats.totalDraws}</strong>回</div><div class="detail-stat"><span>当たり</span><strong id="detail-win-count">${stats.totalWins}</strong>回</div><div class="detail-stat"><span>景品内訳</span><strong id="detail-prize-count">${stats.completePrizeCount ?? 0}</strong>個</div></div><div class="detail-actions"><button class="button button-primary" type="button" data-open-report data-store="${escapeHtml(store.id)}">この店舗の結果を投稿</button><button class="button button-secondary" type="button" data-share-store>この店舗を共有</button>${store.officialUrl ? `<a class="button button-secondary" href="${escapeHtml(store.officialUrl)}" target="_blank" rel="noreferrer">公式店舗情報</a>` : ""}</div><section class="detail-section"><h3>通常／ビッくらポン！プラス別の結果</h3><p id="detail-rate-note" class="section-note section-note-left"></p><div id="detail-usage" class="usage-breakdown"></div></section><section class="detail-section"><h3>景品別の報告数</h3><p id="detail-prize-note" class="section-note section-note-left">景品内訳をすべて入力した投稿のみ集計しています。</p><div id="detail-prizes">${state.campaign?.prizeCategories?.map((prize) => `<div class="recent-report"><p>${escapeHtml(prize.name)} <strong>0個</strong></p></div>`).join("") ?? ""}</div></section><section class="detail-section"><h3>最近の投稿</h3><div id="recent-reports"><p class="section-note section-note-left">投稿データはまだありません。</p></div></section>`;
+  elements.storeDialogBody.innerHTML = `<p class="detail-address">${escapeHtml(store.address)}</p><div class="period-tabs" aria-label="集計期間"><button type="button" data-store-period="all" aria-pressed="true">全期間</button><button type="button" data-store-period="7d" aria-pressed="false">直近7日</button></div><p id="detail-period-note" class="section-note section-note-left"></p><div class="detail-stats"><div class="detail-stat"><span>投稿</span><strong id="detail-report-count">${stats.reportCount}</strong>件</div><div class="detail-stat"><span>抽選</span><strong id="detail-draw-count">${stats.totalDraws}</strong>回</div><div class="detail-stat"><span>当たり</span><strong id="detail-win-count">${stats.totalWins}</strong>回</div><div class="detail-stat"><span>景品内訳</span><strong id="detail-prize-count">${stats.completePrizeCount ?? 0}</strong>個</div></div><div class="detail-actions"><button class="button button-primary" type="button" data-open-report data-store="${escapeHtml(store.id)}">この店舗の結果を投稿</button><button class="button button-secondary" type="button" data-share-store>この店舗を共有</button>${store.officialUrl ? `<a class="button button-secondary" href="${escapeHtml(store.officialUrl)}" target="_blank" rel="noreferrer">公式店舗情報</a>` : ""}</div><section class="detail-section"><h3>通常／ビッくらポン！プラス別の結果</h3><p id="detail-rate-note" class="section-note section-note-left"></p><div id="detail-usage" class="usage-breakdown"></div></section><section class="detail-section"><h3>景品カテゴリ</h3><p id="detail-prize-note" class="section-note section-note-left">景品内訳をすべて入力した投稿のみ集計しています。</p><div id="detail-prizes" class="detail-prize-list">${state.campaign?.prizeCategories?.map((prize) => `<div class="recent-report"><p>${escapeHtml(prize.name)} <strong>0個</strong></p></div>`).join("") ?? ""}</div></section><section class="detail-section"><h3>個別景品内訳</h3><p class="section-note section-note-left">個別景品まで入力された投稿のうち、カテゴリ内訳が完全なデータだけを集計します。</p><div id="detail-item-prizes"></div></section><section class="detail-section"><h3>最近の投稿</h3><div id="recent-reports"><p class="section-note section-note-left">投稿データはまだありません。</p></div></section>`;
   const url = new URL(location.href);
   url.searchParams.set("store", storeId);
   history.replaceState({}, "", url);
@@ -244,14 +264,31 @@ function updateStoreDialogStatsV2(detail) {
     }).join("");
   }
   const enoughPrizeData = hasEnoughPrizeData(detail.stats);
+  const enoughNationalData = hasEnoughPrizeData(detail.national?.stats);
   const prizeNote = document.querySelector("#detail-prize-note");
   if (prizeNote) prizeNote.textContent = `景品内訳をすべて入力した投稿のみ集計しています。${enoughPrizeData ? "" : " 現在は参考値として件数のみ表示します。"}`;
   const prizeBox = document.querySelector("#detail-prizes");
-  if (prizeBox && detail.prizes) prizeBox.innerHTML = detail.prizes.map((prize) => {
-    const quantity = Number(prize.quantity ?? 0);
-    const ratio = detail.stats.completePrizeCount ? `（${(quantity / detail.stats.completePrizeCount * 100).toFixed(1)}%）` : "";
-    return `<div class="recent-report"><p>${escapeHtml(prize.name)} <strong>${quantity.toLocaleString("ja-JP")}個${enoughPrizeData ? ratio : ""}</strong></p></div>`;
-  }).join("");
+  if (prizeBox && detail.prizes) {
+    const nationalById = new Map((detail.national?.prizes ?? []).map((prize) => [prize.id, prize]));
+    prizeBox.innerHTML = prizeShares(detail.prizes, detail.stats.completePrizeCount).map((prize) => {
+      const nationalPrize = nationalById.get(prize.id);
+      const nationalShare = detail.national?.stats?.completePrizeCount ? Number(nationalPrize?.quantity ?? 0) / detail.national.stats.completePrizeCount : null;
+      const comparison = enoughPrizeData && enoughNationalData && prize.share !== null && nationalShare !== null
+        ? `<dl class="prize-comparison"><div><dt>この店舗</dt><dd>${(prize.share * 100).toFixed(1)}%</dd></div><div><dt>全国投稿</dt><dd>${(nationalShare * 100).toFixed(1)}%</dd></div><div><dt>差</dt><dd>${prize.share - nationalShare >= 0 ? "+" : ""}${((prize.share - nationalShare) * 100).toFixed(1)}pt</dd></div></dl>`
+        : "";
+      return `<article class="detail-prize-card"><div><h4>${escapeHtml(prize.name)}</h4><p><strong>${Number(prize.quantity ?? 0).toLocaleString("ja-JP")}</strong>個${enoughPrizeData && prize.share !== null ? `・${(prize.share * 100).toFixed(1)}%` : ""}</p></div>${comparison}</article>`;
+    }).join("");
+  }
+  const itemBox = document.querySelector("#detail-item-prizes");
+  if (itemBox) {
+    itemBox.innerHTML = (detail.itemPrizes ?? []).map((category) => {
+      const categoryName = state.campaign?.prizeCategories?.find((prize) => prize.id === category.prizeCategoryId)?.name ?? "景品";
+      const enoughItemData = hasEnoughItemData(category);
+      const panelId = `detail-items-${category.prizeCategoryId}`;
+      const items = prizeShares(category.items, category.completeItemCount);
+      return `<article class="item-detail-card"><button type="button" class="item-detail-toggle" data-detail-item-toggle aria-expanded="false" aria-controls="${escapeHtml(panelId)}"><span>${escapeHtml(categoryName)}内訳</span><span>${enoughItemData ? `${category.completeItemCount}個を集計` : "まだデータが少ないです"}</span></button><div id="${escapeHtml(panelId)}" class="item-detail-panel" hidden><p class="item-detail-note">完全入力 ${category.completeReportCount}件・${category.completeItemCount}個を集計</p><ul>${items.map((item) => `<li><span>${escapeHtml(item.name)}</span><strong>${item.quantity}個${enoughItemData && item.share !== null ? `・${(item.share * 100).toFixed(1)}%` : ""}</strong></li>`).join("")}</ul></div></article>`;
+    }).join("") || `<p class="store-data-note">個別景品の登録データはまだありません。</p>`;
+  }
 }
 
 async function loadStorePeriod(period) {
@@ -274,6 +311,81 @@ function renderRecentReports(reports) {
   target.innerHTML = reports.map((report) => `<article class="recent-report"><p><strong>${escapeHtml(report.visitDate.replaceAll("-", "/"))}</strong>　${escapeHtml({ normal: "通常", plus: "プラス", unknown: "区分不明" }[report.usageType] ?? "区分不明")}</p><p>タッチパネル：${report.panelDraws}回 / ${report.panelWins}当たり</p><p>スマホ注文：${report.mobileDraws}回 / ${report.mobileWins}当たり</p><p>景品内訳：${escapeHtml({ complete: "すべて入力", partial: "一部不明", unknown: "未入力" }[report.prizeBreakdownStatus] ?? "未入力")}</p>${report.prizes?.length ? `<p>景品：${report.prizes.map((prize) => `${escapeHtml(prize.name)} ${prize.quantity}`).join("、")}</p>` : ""}</article>`).join("");
 }
 
+function updateItemBreakdownStatus(categoryId) {
+  const panel = elements.prizeFields.querySelector(`[data-item-panel="${CSS.escape(categoryId)}"]`);
+  const status = elements.prizeFields.querySelector(`[data-item-status="${CSS.escape(categoryId)}"]`);
+  const categoryInput = elements.prizeFields.querySelector(`[name="prize:${CSS.escape(categoryId)}"]`);
+  if (!panel || !status || !categoryInput) return;
+  const categoryQuantity = Number(categoryInput.value || 0);
+  const itemTotal = [...panel.querySelectorAll('input[name^="item:"]')].reduce((sum, input) => sum + Number(input.value || 0), 0);
+  if (categoryQuantity <= 0) {
+    panel.dataset.status = "unknown";
+    status.textContent = "先にカテゴリ個数を入力してください。";
+  } else if (itemTotal === categoryQuantity) {
+    panel.dataset.status = "complete";
+    status.textContent = `内訳はすべて入力されています（合計${itemTotal}個）。`;
+  } else if (itemTotal < categoryQuantity) {
+    panel.dataset.status = "partial";
+    status.textContent = `一部入力です（${itemTotal}/${categoryQuantity}個）。分かる範囲のまま投稿できます。`;
+  } else {
+    panel.dataset.status = "partial";
+    status.textContent = `個別景品がカテゴリ個数を${itemTotal - categoryQuantity}個超えています。`;
+  }
+}
+
+function toggleItemBreakdown(categoryId, button) {
+  const panel = elements.prizeFields.querySelector(`[data-item-panel="${CSS.escape(categoryId)}"]`);
+  if (!panel) return;
+  const expanding = panel.hidden;
+  panel.hidden = !expanding;
+  panel.dataset.enabled = "true";
+  button.setAttribute("aria-expanded", String(expanding));
+  button.textContent = expanding ? "内訳を閉じる" : "内訳も入力する";
+  updateItemBreakdownStatus(categoryId);
+  if (expanding) panel.querySelector("input")?.focus();
+}
+
+function resetItemBreakdowns() {
+  elements.prizeFields.querySelectorAll("[data-item-panel]").forEach((panel) => {
+    panel.hidden = true;
+    delete panel.dataset.enabled;
+    panel.dataset.status = "unknown";
+  });
+  elements.prizeFields.querySelectorAll("[data-item-toggle]").forEach((button) => {
+    button.setAttribute("aria-expanded", "false");
+    button.textContent = "内訳も入力する";
+  });
+}
+
+async function loadRanking() {
+  if (state.rankingLoaded || !state.campaign) return;
+  state.rankingLoaded = true;
+  elements.rankingStatus.textContent = "ランキングを読み込んでいます。";
+  try {
+    const ranking = await fetchJson(`/api/rankings/figure?campaign=${encodeURIComponent(state.campaign.id)}`);
+    if (!ranking.items?.length) {
+      elements.rankingStatus.textContent = `現在ランキング対象となる店舗がありません（完全入力${ranking.minimums.completeReports}件以上・対象景品${ranking.minimums.completePrizes}個以上）。`;
+      return;
+    }
+    elements.rankingStatus.textContent = `${ranking.items.length}店舗を掲載しています。`;
+    elements.rankingList.innerHTML = ranking.items.map((item) => `<li><button type="button" data-ranking-store="${escapeHtml(item.storeId)}"><span class="ranking-position">${item.rank}位</span><span class="ranking-store"><strong>${escapeHtml(item.storeName)}</strong><small>${escapeHtml(item.prefecture)} ${escapeHtml(item.city)}</small></span><span class="ranking-rate">${(item.share * 100).toFixed(1)}%<small>対象景品 ${item.completePrizeCount}個・投稿 ${item.completeReportCount}件</small></span></button></li>`).join("");
+  } catch {
+    state.rankingLoaded = false;
+    elements.rankingStatus.textContent = "ランキングを読み込めませんでした。時間をおいて再度お試しください。";
+  }
+}
+
+function initializeRanking() {
+  if (!elements.rankingSection) return;
+  if (!("IntersectionObserver" in window)) { loadRanking(); return; }
+  const observer = new IntersectionObserver((entries) => {
+    if (!entries.some((entry) => entry.isIntersecting)) return;
+    observer.disconnect();
+    loadRanking();
+  }, { rootMargin: "240px" });
+  observer.observe(elements.rankingSection);
+}
+
 function closeStore() {
   elements.storeDialog.close();
   const url = new URL(location.href);
@@ -285,7 +397,10 @@ function closeStore() {
 function openReport(storeId, trigger) {
   if (elements.storeDialog.open) elements.storeDialog.close();
   state.lastTrigger = trigger ?? document.activeElement;
-  elements.reportStore.value = storeId ?? state.selectedStoreId ?? "";
+  const selectedStoreId = storeId ?? state.selectedStoreId ?? "";
+  const selectedStore = state.stores.find((store) => store.id === selectedStoreId);
+  elements.reportPrefecture.value = selectedStore?.prefecture ?? "";
+  updateReportStoreOptions(selectedStore?.prefecture ?? "", selectedStoreId);
   elements.visitDate.value = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
   elements.visitDate.max = elements.visitDate.value;
   elements.formErrors.hidden = true;
@@ -302,6 +417,7 @@ function validateForm(payload) {
     storeIds: new Set(state.stores.map((store) => store.id)),
     campaign: state.campaign,
     prizeCategoryIds: new Set(state.campaign?.prizeCategories?.map((prize) => prize.id) ?? []),
+    prizeItems: new Map((state.campaign?.prizeItems ?? []).map((item) => [item.id, { prizeCategoryId: item.prizeCategoryId }])),
   });
 }
 
@@ -333,11 +449,19 @@ async function ensureTurnstile() {
 
 function formPayload() {
   const data = new FormData(elements.reportForm);
+  const itemBreakdowns = [...elements.prizeFields.querySelectorAll("[data-item-panel]")].filter((panel) => panel.dataset.enabled === "true").map((panel) => {
+    const prizeCategoryId = panel.dataset.itemPanel;
+    const categoryQuantity = Number(data.get(`prize:${prizeCategoryId}`) ?? 0);
+    const items = [...panel.querySelectorAll('input[name^="item:"]')].map((input) => ({ prizeItemId: input.name.split(":").at(-1), quantity: Number(input.value || 0) })).filter((item) => item.quantity > 0);
+    const itemTotal = items.reduce((sum, item) => sum + item.quantity, 0);
+    return { prizeCategoryId, status: categoryQuantity > 0 && itemTotal === categoryQuantity ? "complete" : "partial", items };
+  }).filter((breakdown) => Number(data.get(`prize:${breakdown.prizeCategoryId}`) ?? 0) > 0);
   return {
     storeId: data.get("storeId"), campaignId: data.get("campaignId"), visitDate: data.get("visitDate"), usageType: data.get("usageType"),
     prizeBreakdownStatus: data.get("prizeBreakdownStatus"),
     panelDraws: Number(data.get("panelDraws")), panelWins: Number(data.get("panelWins")), mobileDraws: Number(data.get("mobileDraws")), mobileWins: Number(data.get("mobileWins")), unknownPrizeCount: Number(data.get("unknownPrizeCount")),
     prizes: [...data.entries()].filter(([key]) => key.startsWith("prize:")).map(([key, value]) => ({ prizeCategoryId: key.slice(6), quantity: Number(value) })).filter((item) => item.quantity > 0),
+    itemBreakdowns,
     turnstileToken: data.get("cf-turnstile-response") ?? "",
   };
 }
@@ -361,6 +485,8 @@ async function submitReport(event) {
     if (result.posting) elements.postingStatus.textContent = `本日はあと${result.posting.remainingToday}件投稿できます。`;
     elements.reportForm.reset();
     elements.reportCampaign.value = state.campaign?.id ?? "";
+    updateReportStoreOptions("");
+    resetItemBreakdowns();
     if (window.turnstile && turnstileWidgetId !== null) window.turnstile.reset(turnstileWidgetId);
     setTimeout(() => closeReport(), 1300);
   } catch (error) { elements.formErrors.hidden = false; elements.formErrors.textContent = error.message; elements.formStatus.textContent = ""; }
@@ -380,12 +506,30 @@ function bindEvents() {
   elements.searchClear.addEventListener("click", () => { elements.search.value = ""; elements.search.focus(); resetStoreResults(); });
   elements.storeLoadMore.addEventListener("click", () => { state.visibleStoreCount += STORE_RENDER_BATCH_SIZE; renderStores(); });
   elements.storeList.addEventListener("click", (event) => { const button = event.target.closest("[data-store-id]"); if (button) openStore(button.dataset.storeId, button); });
+  elements.reportPrefecture.addEventListener("change", () => updateReportStoreOptions(elements.reportPrefecture.value));
+  elements.prizeFields.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-item-toggle]");
+    if (button) toggleItemBreakdown(button.dataset.itemToggle, button);
+  });
+  elements.prizeFields.addEventListener("input", (event) => {
+    const category = event.target.closest("[data-prize-category]")?.dataset.prizeCategory;
+    if (category) updateItemBreakdownStatus(category);
+  });
   document.addEventListener("click", (event) => {
     const reportButton = event.target.closest("[data-open-report]");
     if (reportButton) openReport(reportButton.dataset.store, reportButton);
     if (event.target.closest("[data-close-dialog]")) closeStore();
     if (event.target.closest("[data-close-report]")) closeReport();
     if (event.target.closest("[data-share-store]")) shareStore();
+    const itemToggle = event.target.closest("[data-detail-item-toggle]");
+    if (itemToggle) {
+      const panel = document.getElementById(itemToggle.getAttribute("aria-controls"));
+      const expanding = panel?.hidden;
+      if (panel) panel.hidden = !expanding;
+      itemToggle.setAttribute("aria-expanded", String(expanding));
+    }
+    const rankingStore = event.target.closest("[data-ranking-store]");
+    if (rankingStore) openStore(rankingStore.dataset.rankingStore, rankingStore);
     const periodButton = event.target.closest("[data-store-period]");
     if (periodButton) loadStorePeriod(periodButton.dataset.storePeriod);
   });
@@ -414,7 +558,7 @@ async function loadData() {
     const sparseStats = new Map((stats?.stores ?? []).map((entry) => [entry.storeId, entry]));
     state.stores = (storeData.items ?? storeData).map((store) => ({ ...store, stats: sparseStats.get(store.id) ?? getStats(store) }));
     state.stats = stats ?? { reportCount: 0, totalDraws: 0, totalWins: 0, totalPrizeCount: 0, completeReportCount: 0, completePrizeCount: 0, prizes: state.campaign?.prizeCategories?.map((prize) => ({ name: prize.name, quantity: 0 })) ?? [], usage: [], stores: [] };
-    renderCampaigns(); renderStats(); populateStoreControls(); renderStores();
+    renderCampaigns(); renderStats(); populateStoreControls(); renderStores(); initializeRanking();
     const sharedStore = new URLSearchParams(location.search).get("store");
     if (sharedStore) requestAnimationFrame(() => openStore(sharedStore, document.querySelector(`[data-store-id="${CSS.escape(sharedStore)}"]`)));
   } catch { elements.storeStatus.textContent = "店舗データを読み込めませんでした。時間をおいて再度お試しください。"; elements.storeList.innerHTML = ""; renderStats(); }

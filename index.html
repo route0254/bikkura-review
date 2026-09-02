@@ -108,6 +108,19 @@
         <button id="store-load-more" class="button button-secondary store-load-more" type="button" hidden>さらに表示</button>
       </section>
 
+      <section id="figure-ranking" class="ranking-section" aria-labelledby="ranking-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">利用者投稿データ</p>
+            <h2 id="ranking-title">フィギュア報告割合ランキング</h2>
+          </div>
+          <p class="section-note">景品内訳をすべて入力した投稿が5件以上、対象景品が50個以上の店舗だけを掲載します。</p>
+        </div>
+        <p class="ranking-caution">利用者投稿データを集計した参考値です。公式の景品封入率や店舗ごとの実際の提供割合を示すものではありません。</p>
+        <div id="ranking-status" class="status-message" role="status" aria-live="polite">ランキングはこの付近まで移動すると読み込みます。</div>
+        <ol id="ranking-list" class="ranking-list"></ol>
+      </section>
+
       <aside class="notice" aria-labelledby="notice-title">
         <span class="notice-mark" aria-hidden="true">i</span>
         <div>
@@ -150,7 +163,8 @@
           <p id="posting-status" class="posting-status" role="status">匿名投稿は1日5件までです。ログインすると1日20件まで投稿できます。</p>
           <div id="form-errors" class="form-errors" role="alert" tabindex="-1" hidden></div>
           <div class="form-grid">
-            <label class="field field-wide" for="report-store"><span>店舗 <b>必須</b></span><select id="report-store" name="storeId" required><option value="">選択してください</option></select></label>
+            <label class="field" for="report-prefecture"><span>都道府県 <b>必須</b></span><select id="report-prefecture" required><option value="">選択してください</option></select></label>
+            <label class="field" for="report-store"><span>店舗 <b>必須</b></span><select id="report-store" name="storeId" required disabled><option value="">都道府県を選択してください</option></select></label>
             <label class="field" for="visit-date"><span>来店日 <b>必須</b></span><input id="visit-date" name="visitDate" type="date" required></label>
             <label class="field" for="usage-type"><span>利用区分 <b>必須</b></span><select id="usage-type" name="usageType" required><option value="unknown">不明・未選択</option><option value="normal">通常</option><option value="plus">プラス</option></select></label>
           </div>
@@ -171,7 +185,7 @@
           <fieldset>
             <legend>受け取った景品</legend>
             <label class="field field-wide breakdown-field" for="prize-breakdown-status"><span>景品の内訳をすべて入力できていますか？ <b>必須</b></span><select id="prize-breakdown-status" name="prizeBreakdownStatus" required><option value="">選択してください</option><option value="complete">すべて入力した</option><option value="partial">一部わからない</option><option value="unknown">内訳は未入力</option></select></label>
-            <div id="prize-fields" class="number-grid"></div>
+            <div id="prize-fields" class="prize-entry-list"></div>
             <label class="field" for="unknown-prizes"><span>内訳不明</span><input id="unknown-prizes" name="unknownPrizeCount" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>
           </fieldset>
           <input id="report-campaign" name="campaignId" type="hidden">

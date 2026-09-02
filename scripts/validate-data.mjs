@@ -17,6 +17,7 @@ function checkUnique(items, label) {
 checkUnique(stores, "stores");
 checkUnique(campaigns, "campaigns");
 checkUnique(campaigns.flatMap((campaign) => campaign.prizeCategories ?? []), "prizeCategories");
+checkUnique(campaigns.flatMap((campaign) => campaign.prizeItems ?? []), "prizeItems");
 
 for (const store of stores) {
   for (const key of ["name", "prefecture", "city", "address", "officialUrl"]) if (!store[key] || typeof store[key] !== "string") errors.push(`${store.id}: ${key} がありません`);
@@ -29,6 +30,12 @@ for (const store of stores) {
 for (const campaign of campaigns) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(campaign.startsOn) || !/^\d{4}-\d{2}-\d{2}$/.test(campaign.endsOn) || campaign.endsOn < campaign.startsOn) errors.push(`${campaign.id}: 開催期間が不正です`);
   if (!campaign.prizeCategories?.length) errors.push(`${campaign.id}: 景品カテゴリがありません`);
+  const categoryIds = new Set(campaign.prizeCategories?.map((category) => category.id) ?? []);
+  for (const item of campaign.prizeItems ?? []) {
+    if (!categoryIds.has(item.prizeCategoryId)) errors.push(`${item.id}: 同じキャンペーンの景品カテゴリに属していません`);
+    if (!item.name || typeof item.name !== "string") errors.push(`${item.id}: name がありません`);
+    if (!Number.isInteger(item.sortOrder) || item.sortOrder < 0) errors.push(`${item.id}: sortOrder が不正です`);
+  }
 }
 
 if (errors.length) {

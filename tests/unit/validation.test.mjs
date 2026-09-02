@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { validateReportPayload } from "../../lib/validation.js";
 
 const campaign = { id: "campaign-1", startsOn: "2026-08-21", endsOn: "2026-09-30" };
-const context = { storeIds: new Set(["store-1"]), campaign, prizeCategoryIds: new Set(["prize-1", "prize-2"]), today: "2026-09-02" };
+const context = {
+  storeIds: new Set(["store-1"]), campaign, prizeCategoryIds: new Set(["prize-1", "prize-2"]), today: "2026-09-02",
+  prizeItems: new Map([["item-1", { prizeCategoryId: "prize-1" }], ["item-2", { prizeCategoryId: "prize-1" }], ["item-3", { prizeCategoryId: "prize-2" }]]),
+};
 const valid = {
   storeId: "store-1", campaignId: "campaign-1", visitDate: "2026-09-02", usageType: "normal",
   prizeBreakdownStatus: "complete",
@@ -68,4 +71,35 @@ test("未来日とキャンペーン期間外を拒否する", () => {
 test("1件の抽選回数は合計300回まで", () => {
   const errors = validateReportPayload({ ...valid, panelDraws: 200, panelWins: 6, mobileDraws: 101, mobileWins: 1 }, context);
   assert.ok(errors.some((error) => error.includes("合計300回")));
+});
+
+test("個別景品のcomplete・partial・unknownをカテゴリ個数と照合する", () => {
+  const complete = { ...valid, itemBreakdowns: [{ prizeCategoryId: "prize-1", status: "complete", items: [{ prizeItemId: "item-1", quantity: 1 }, { prizeItemId: "item-2", quantity: 3 }] }] };
+  const partial = { ...valid, itemBreakdowns: [{ prizeCategoryId: "prize-1", status: "partial", items: [{ prizeItemId: "item-1", quantity: 2 }] }] };
+  const unknown = { ...valid, itemBreakdowns: [{ prizeCategoryId: "prize-1", status: "unknown", items: [] }] };
+  assert.deepEqual(validateReportPayload(complete, context), []);
+  assert.deepEqual(validateReportPayload(partial, context), []);
+  assert.deepEqual(validateReportPayload(unknown, context), []);
+});
+
+test("個別景品の整数・重複・所属・カテゴリ上限を検証する", () => {
+  const errors = validateReportPayload({ ...valid, itemBreakdowns: [{
+    prizeCategoryId: "prize-1", status: "complete", items: [
+      { prizeItemId: "item-1", quantity: 3.5 },
+      { prizeItemId: "item-1", quantity: 3 },
+      { prizeItemId: "item-3", quantity: 2 },
+    ],
+  }] }, context);
+  assert.ok(errors.some((error) => error.includes("整数")));
+  assert.ok(errors.some((error) => error.includes("重複")));
+  assert.ok(errors.some((error) => error.includes("一致しません")));
+  const overLimit = validateReportPayload({ ...valid, itemBreakdowns: [{ prizeCategoryId: "prize-1", status: "complete", items: [{ prizeItemId: "item-1", quantity: 3 }, { prizeItemId: "item-2", quantity: 3 }] }] }, context);
+  assert.ok(overLimit.some((error) => error.includes("カテゴリ個数以下")));
+});
+
+test("completeとpartialの個別景品合計ルールを検証する", () => {
+  const incomplete = validateReportPayload({ ...valid, itemBreakdowns: [{ prizeCategoryId: "prize-1", status: "complete", items: [{ prizeItemId: "item-1", quantity: 2 }] }] }, context);
+  const falselyPartial = validateReportPayload({ ...valid, itemBreakdowns: [{ prizeCategoryId: "prize-1", status: "partial", items: [{ prizeItemId: "item-1", quantity: 4 }] }] }, context);
+  assert.ok(incomplete.some((error) => error.includes("カテゴリ個数と一致")));
+  assert.ok(falselyPartial.some((error) => error.includes("すべて入力した状態")));
 });

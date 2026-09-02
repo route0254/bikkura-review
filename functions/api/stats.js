@@ -6,7 +6,7 @@ export async function onRequestGet({ request, env }) {
     const url = new URL(request.url);
     const campaign = await getCampaign(env.DB, url.searchParams.get("campaign"));
     if (!campaign) return apiError("キャンペーンが見つかりません。", 404);
-    const [totals, prizes, breakdown, usageRows, storeRows] = await Promise.all([
+    const [totals, prizes, breakdown, usageRows, storeRows, storePrizeRows] = await Promise.all([
       env.DB.prepare(`
         SELECT
           COALESCE(SUM(report_count), 0) AS report_count,
@@ -42,23 +42,49 @@ export async function onRequestGet({ request, env }) {
       `).bind(campaign.id).all(),
       env.DB.prepare(`
         SELECT
-          store_id,
-          report_count,
-          total_panel_draws + total_mobile_draws AS total_draws,
-          total_panel_wins + total_mobile_wins AS total_wins,
-          total_prize_count
-        FROM store_campaign_stats
-        WHERE campaign_id = ? AND report_count > 0
+          scs.store_id,
+          scs.report_count,
+          scs.total_panel_draws + scs.total_mobile_draws AS total_draws,
+          scs.total_panel_wins + scs.total_mobile_wins AS total_wins,
+          scs.total_prize_count,
+          COALESCE(complete.complete_report_count, 0) AS complete_report_count
+        FROM store_campaign_stats scs
+        LEFT JOIN (
+          SELECT store_id, COUNT(*) AS complete_report_count
+          FROM reports
+          WHERE campaign_id = ? AND status = 'active' AND prize_breakdown_status = 'complete'
+          GROUP BY store_id
+        ) complete ON complete.store_id = scs.store_id
+        WHERE scs.campaign_id = ? AND scs.report_count > 0
+      `).bind(campaign.id, campaign.id).all(),
+      env.DB.prepare(`
+        SELECT scps.store_id, pc.id, pc.name, scps.reported_quantity AS quantity
+        FROM store_campaign_prize_stats scps
+        JOIN prize_categories pc ON pc.id = scps.prize_category_id
+        WHERE scps.campaign_id = ? AND pc.active = 1 AND scps.reported_quantity > 0
+        ORDER BY scps.store_id, pc.sort_order, pc.id
       `).bind(campaign.id).all(),
     ]);
     const prizeItems = prizes.results.map((prize) => ({ id: prize.id, name: prize.name, quantity: Number(prize.quantity) }));
     const completePrizeCount = prizeItems.reduce((sum, prize) => sum + prize.quantity, 0);
+    const prizesByStore = new Map();
+    for (const prize of storePrizeRows.results) {
+      if (!prizesByStore.has(prize.store_id)) prizesByStore.set(prize.store_id, []);
+      prizesByStore.get(prize.store_id).push({ id: prize.id, name: prize.name, quantity: Number(prize.quantity) });
+    }
     return json({
       campaign: mapCampaign(campaign),
       ...mapSummary({ ...totals, ...breakdown, complete_prize_count: completePrizeCount }),
       prizes: prizeItems,
       usage: mapUsageStats(usageRows.results),
-      stores: storeRows.results.map((row) => ({ storeId: row.store_id, ...mapSummary(row) })),
+      stores: storeRows.results.map((row) => {
+        const storePrizes = prizesByStore.get(row.store_id) ?? [];
+        return {
+          storeId: row.store_id,
+          ...mapSummary({ ...row, complete_prize_count: storePrizes.reduce((sum, prize) => sum + prize.quantity, 0) }),
+          prizes: storePrizes,
+        };
+      }),
     }, { headers: cacheHeaders(60) });
   } catch (error) { return unavailable(error); }
 }
