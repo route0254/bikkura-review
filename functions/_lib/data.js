@@ -20,11 +20,38 @@ export function mapStore(row) {
     longitude: row.longitude,
     officialUrl: row.official_url,
     active: Boolean(row.active),
-    stats: {
-      reportCount: Number(row.report_count ?? 0),
-      totalDraws: Number(row.total_panel_draws ?? 0) + Number(row.total_mobile_draws ?? 0),
-      totalWins: Number(row.total_panel_wins ?? 0) + Number(row.total_mobile_wins ?? 0),
-      totalPrizeCount: Number(row.total_prize_count ?? 0),
-    },
+    stats: mapSummary(row),
   };
+}
+
+export function mapSummary(row = {}) {
+  const totalDraws = row.total_draws === null || row.total_draws === undefined
+    ? Number(row.total_panel_draws ?? 0) + Number(row.total_mobile_draws ?? 0)
+    : Number(row.total_draws);
+  const totalWins = row.total_wins === null || row.total_wins === undefined
+    ? Number(row.total_panel_wins ?? 0) + Number(row.total_mobile_wins ?? 0)
+    : Number(row.total_wins);
+  return {
+    reportCount: Number(row.report_count ?? 0),
+    totalDraws,
+    totalWins,
+    totalPrizeCount: Number(row.total_prize_count ?? 0),
+    completeReportCount: Number(row.complete_report_count ?? 0),
+    completePrizeCount: Number(row.complete_prize_count ?? 0),
+  };
+}
+
+export function mapUsageStats(rows = []) {
+  const byType = new Map(rows.map((row) => [row.usage_type, row]));
+  return ["normal", "plus", "unknown"].map((usageType) => {
+    const row = byType.get(usageType) ?? {};
+    return {
+      usageType,
+      reportCount: Number(row.report_count ?? 0),
+      panelDraws: Number(row.total_panel_draws ?? 0),
+      panelWins: Number(row.total_panel_wins ?? 0),
+      mobileDraws: Number(row.total_mobile_draws ?? 0),
+      mobileWins: Number(row.total_mobile_wins ?? 0),
+    };
+  });
 }

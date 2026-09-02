@@ -18,8 +18,18 @@ test("トップページを表示し、店舗を検索・絞り込みできる",
 });
 
 test("全国店舗を段階表示し、一覧の全店舗を検索できる", async ({ page }) => {
+  const functionRequests = [];
+  let storeMasterRequests = 0;
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/")) functionRequests.push(url.pathname);
+    if (url.pathname === "/data/stores.json") storeMasterRequests += 1;
+  });
   await page.goto("/");
   await expect(page.locator("#store-count")).toHaveText("60 / 552店舗を表示");
+  expect(functionRequests.sort()).toEqual(["/api/campaigns", "/api/stats"]);
+  expect(storeMasterRequests).toBe(1);
+  expect(functionRequests).not.toContain("/api/stores");
   await expect(page.locator(".store-card")).toHaveCount(60);
   await page.getByRole("button", { name: /さらに表示/ }).click();
   await expect(page.locator("#store-count")).toHaveText("120 / 552店舗を表示");
@@ -34,6 +44,13 @@ test("店舗詳細を開閉し、フォーカスを戻す", async ({ page }) => 
   const trigger = page.locator('[data-store-id="kura-664"]');
   await trigger.click();
   await expect(page.getByRole("dialog", { name: "新宿靖国通り店" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "全期間" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#detail-period-note")).toHaveText("全期間の集計");
+  await expect(page.getByRole("heading", { name: "通常", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "ビッくらポン！プラス", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "直近7日" }).click();
+  await expect(page.getByRole("button", { name: "直近7日" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#detail-period-note")).toContainText("から今日まで");
   await page.getByRole("button", { name: "店舗詳細を閉じる" }).click();
   await expect(trigger).toBeFocused();
 });
@@ -42,6 +59,7 @@ test("不正な回数は投稿前にエラーになる", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
   await page.getByLabel("店舗 必須").selectOption("kura-664");
+  await page.getByLabel("景品の内訳をすべて入力できていますか？ 必須").selectOption("partial");
   await page.getByLabel("抽選回数").first().fill("1");
   await page.getByLabel("当たり回数").first().fill("2");
   await page.getByRole("button", { name: "この内容で投稿" }).click();

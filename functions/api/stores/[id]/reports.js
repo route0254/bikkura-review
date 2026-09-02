@@ -8,7 +8,7 @@ export async function onRequestGet({ request, env, params }) {
     if (!campaign) return apiError("キャンペーンが見つかりません。", 404);
     const limit = boundedLimit(url.searchParams.get("limit"), 10, 50);
     const reports = (await env.DB.prepare(`
-      SELECT id, visit_date, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins, unknown_prize_count, created_at
+      SELECT id, visit_date, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins, unknown_prize_count, prize_breakdown_status, created_at
       FROM reports
       WHERE store_id = ? AND campaign_id = ? AND status = 'active'
       ORDER BY created_at DESC, id DESC LIMIT ?
@@ -32,6 +32,7 @@ export async function onRequestGet({ request, env, params }) {
       mobileDraws: report.mobile_draws,
       mobileWins: report.mobile_wins,
       unknownPrizeCount: report.unknown_prize_count,
+      prizeBreakdownStatus: report.prize_breakdown_status,
       prizes: prizes.filter((prize) => prize.report_id === report.id).map((prize) => ({ id: prize.id, name: prize.name, quantity: prize.quantity })),
     })) }, { headers: cacheHeaders(30) });
   } catch (error) { return unavailable(error); }

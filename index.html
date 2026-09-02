@@ -164,6 +164,7 @@
           </fieldset>
           <fieldset>
             <legend>受け取った景品</legend>
+            <label class="field field-wide breakdown-field" for="prize-breakdown-status"><span>景品の内訳をすべて入力できていますか？ <b>必須</b></span><select id="prize-breakdown-status" name="prizeBreakdownStatus" required><option value="">選択してください</option><option value="complete">すべて入力した</option><option value="partial">一部わからない</option><option value="unknown">内訳は未入力</option></select></label>
             <div id="prize-fields" class="number-grid"></div>
             <label class="field" for="unknown-prizes"><span>内訳不明</span><input id="unknown-prizes" name="unknownPrizeCount" type="number" min="0" max="500" inputmode="numeric" value="0" required></label>
           </fieldset>

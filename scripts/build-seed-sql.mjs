@@ -22,6 +22,7 @@ sql.push(
   "",
   `UPDATE stores SET active = 0 WHERE id LIKE 'kura-%' AND id NOT IN (${currentStoreIds});`,
   "INSERT OR IGNORE INTO store_campaign_stats (store_id, campaign_id) SELECT stores.id, campaigns.id FROM stores CROSS JOIN campaigns WHERE stores.active = 1;",
+  "INSERT OR IGNORE INTO store_campaign_usage_stats (store_id, campaign_id, usage_type) SELECT stores.id, campaigns.id, usage.usage_type FROM stores CROSS JOIN campaigns CROSS JOIN (SELECT 'normal' AS usage_type UNION ALL SELECT 'plus' UNION ALL SELECT 'unknown') AS usage WHERE stores.active = 1;",
   "PRAGMA optimize;",
   "",
 );

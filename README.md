@@ -31,7 +31,7 @@ pnpm run dev
 
 ## D1
 
-binding名は `DB`、migrationは `migrations/0001_initial.sql` です。
+binding名は `DB` です。migrationは `migrations/` の番号順に適用します。既存DBには `0002_improve_statistics.sql` を追加適用してください。
 
 ```bash
 pnpm run db:migrate
@@ -47,11 +47,13 @@ pnpm run db:seed
 - `stores`: 店舗マスタ
 - `campaigns`: キャンペーン
 - `prize_categories`: キャンペーンごとの景品区分
-- `reports`: 構造化された投稿。`active` / `hidden` を保持
+- `reports`: 構造化された投稿。`active` / `hidden` と景品内訳状態（`complete` / `partial` / `unknown`）を保持
 - `report_prizes`: 投稿と景品区分の個数
 - `store_campaign_stats`: 店舗・キャンペーン単位の集計
+- `store_campaign_usage_stats`: 店舗・キャンペーン・通常／プラス／不明単位の集計
 - `store_campaign_prize_stats`: 店舗・キャンペーン・景品単位の集計
 - `rate_limits`: 一時的な連投制限用ハッシュ
+- `report_fingerprints`: 1時間以内の同一内容の重複投稿を防ぐ期限付きハッシュ
 
 閲覧時に `reports` 全件を集計せず、投稿時に集計テーブルを更新します。問題のある投稿はD1で `status = 'hidden'` に変更し、`scripts/rebuild-stats.sql` で集計を再構築できます。物理削除は前提にしていません。
 
@@ -59,13 +61,17 @@ pnpm run db:seed
 
 - `GET /api/campaigns`
 - `GET /api/stores?q=&prefecture=&campaign=&limit=&cursor=`
-- `GET /api/stores/:id?campaign=`
+- `GET /api/stores/:id?campaign=&period=all|7d`
 - `GET /api/stores/:id/reports?campaign=&limit=`
 - `GET /api/stats?campaign=`
 - `GET /api/config`
 - `POST /api/reports`
 
-一覧APIはページングし、直近投稿は店舗詳細を開いたときだけ取得します。GETの全国集計・店舗集計は30〜300秒の短いCDNキャッシュを許可しています。投稿直後は表示反映が少し遅れる場合があります。
+初期表示では静的な `data/stores.json` と、キャンペーン・疎な集計データの2 APIだけを取得します。一覧APIはフォールバック用途でページングし、直近投稿と期間別集計は店舗詳細を開いたときだけ取得します。GETの全国集計・店舗集計は30〜300秒の短いCDNキャッシュを許可しています。投稿直後は表示反映が少し遅れる場合があります。
+
+当選率は5投稿かつ50抽選以上、景品割合は内訳をすべて入力した3投稿かつ景品10個以上を表示条件にしています。景品別集計には `prize_breakdown_status = 'complete'` の投稿だけを使います。
+
+店舗詳細では通常・ビッくらポン！プラス・区分不明を分け、タッチパネル／スマホ注文の内訳を維持して表示します。全期間と直近7日を切り替えられ、7日分はD1で期間集計します。
 
 ## 投稿の処理
 
@@ -75,7 +81,8 @@ pnpm run db:seed
 4. Turnstile tokenをSiteverify APIで検証
 5. 送信元IPを保存せず、IP・秘密のsalt・時間枠からSHA-256ハッシュを作成
 6. 10分に5件までの簡易連投制限を確認
-7. Prepared StatementとD1 batchで投稿・景品・集計値をまとめて更新
+7. 同じ利用者・同じ内容の投稿を期限付きハッシュで1時間拒否
+8. Prepared StatementとD1 batchで投稿・景品・集計値をまとめて更新
 
 自由記述、アカウント、星評価は扱いません。
 
