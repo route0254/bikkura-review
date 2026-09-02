@@ -1,0 +1,127 @@
+# ビッくらポン！みんなの結果共有
+
+利用者が自己申告したビッくらポン！の抽選結果を、店舗・キャンペーン・全国単位で集計する非公式サイトです。くら寿司、各コラボ作品、その他権利者とは関係ありません。店舗の評価、ランキング、不正の判定には使いません。
+
+公開予定URL: https://review.chiikatsu-map.com/
+
+## 構成
+
+- `index.html` / `style.css` / `app.js`: 画面
+- `functions/api/`: Cloudflare Pages Functions
+- `lib/`: 画面とAPIで共有する検索・入力検証
+- `migrations/`: D1 migration
+- `data/`: 店舗・キャンペーンの元データ
+- `seed/`: D1投入用SQL（`data/` から生成）
+- `scripts/`: データ検査、seed生成、静的ファイルのbuild
+- `tests/`: Node.js unit test、Playwright smoke test
+
+Node.js 22、pnpm 11を使います。画面はVanilla HTML / CSS / JavaScript、保存先はCloudflare D1です。
+
+## ローカル開発
+
+```bash
+pnpm install
+copy .dev.vars.example .dev.vars
+pnpm run db:migrate
+pnpm run db:seed
+pnpm run dev
+```
+
+表示された `http://127.0.0.1:8788` を開きます。`.dev.vars.example` はCloudflare公式のテスト用Turnstileキーです。本番の値は入っていません。
+
+## D1
+
+binding名は `DB`、migrationは `migrations/0001_initial.sql` です。
+
+```bash
+pnpm run db:migrate
+pnpm run db:seed
+```
+
+`pnpm run db:seed` は `data/stores.json` と `data/campaigns.json` から `seed/seed.sql` を生成してローカルD1へ投入します。公開済みIDは変更・再利用しません。店舗名が変わっても同じ店舗ならIDを維持します。
+
+リモートD1を作成した後は、`wrangler.jsonc` の `database_id` を実際のIDに置き換えます。Account IDやAPI tokenはファイルへ書きません。
+
+## DB構造
+
+- `stores`: 店舗マスタ
+- `campaigns`: キャンペーン
+- `prize_categories`: キャンペーンごとの景品区分
+- `reports`: 構造化された投稿。`active` / `hidden` を保持
+- `report_prizes`: 投稿と景品区分の個数
+- `store_campaign_stats`: 店舗・キャンペーン単位の集計
+- `store_campaign_prize_stats`: 店舗・キャンペーン・景品単位の集計
+- `rate_limits`: 一時的な連投制限用ハッシュ
+
+閲覧時に `reports` 全件を集計せず、投稿時に集計テーブルを更新します。問題のある投稿はD1で `status = 'hidden'` に変更し、`scripts/rebuild-stats.sql` で集計を再構築できます。物理削除は前提にしていません。
+
+## API
+
+- `GET /api/campaigns`
+- `GET /api/stores?q=&prefecture=&campaign=&limit=&cursor=`
+- `GET /api/stores/:id?campaign=`
+- `GET /api/stores/:id/reports?campaign=&limit=`
+- `GET /api/stats?campaign=`
+- `GET /api/config`
+- `POST /api/reports`
+
+一覧APIはページングし、直近投稿は店舗詳細を開いたときだけ取得します。GETの全国集計・店舗集計は30〜300秒の短いCDNキャッシュを許可しています。投稿直後は表示反映が少し遅れる場合があります。
+
+## 投稿の処理
+
+1. 画面で回数、日付、景品数の矛盾を検査
+2. Pages Functionsで同じ内容を再検査
+3. 店舗・キャンペーン・景品IDをD1で確認
+4. Turnstile tokenをSiteverify APIで検証
+5. 送信元IPを保存せず、IP・秘密のsalt・時間枠からSHA-256ハッシュを作成
+6. 10分に5件までの簡易連投制限を確認
+7. Prepared StatementとD1 batchで投稿・景品・集計値をまとめて更新
+
+自由記述、アカウント、星評価は扱いません。
+
+## Turnstile
+
+Cloudflare Pagesの環境変数・Secretに次を設定します。
+
+- `TURNSTILE_SITE_KEY`: 公開用sitekey
+- `TURNSTILE_SECRET_KEY`: Secret
+- `RATE_LIMIT_SALT`: 十分に長いランダム値のSecret
+
+本番の値は `.dev.vars` やGitへ入れません。ブラウザに配置するだけでなく、Pages FunctionsからSiteverify APIへ送って検証します。
+
+## テスト
+
+```bash
+pnpm run check
+pnpm run test:unit
+pnpm run test:smoke
+pnpm run build
+```
+
+`check` はJavaScript構文、マスタデータ、生成seedの一致を確認します。Smoke Testは検索、都道府県絞り込み、店舗詳細、フォーカス復帰、投稿エラー、共有URL、スマホ幅、主要なアクセシビリティを確認します。
+
+## Cloudflare Pagesへ公開する手順
+
+1. GitHubで `bikkura-review` リポジトリを作り、このプロジェクトをpush
+2. CloudflareでD1データベースを作り、`wrangler.jsonc` の `database_id` を更新
+3. リモートD1へmigrationとseedを適用
+4. Cloudflare PagesでGitHubリポジトリを接続
+5. build commandを `pnpm run build`、output directoryを `dist`、Node.jsを22に設定
+6. PagesのSettingsでD1 binding `DB` を作成
+7. Turnstile widgetを作り、上記3変数をPagesの環境変数・Secretへ設定
+8. Pagesを一度デプロイし、`<project>.pages.dev` で表示と投稿を確認
+9. PagesのCustom domainsで `review.chiikatsu-map.com` を登録
+10. 現在のDNS管理サービスで `review.chiikatsu-map.com CNAME <project>.pages.dev` を設定
+11. HTTPS、canonical、robots、sitemap、投稿を再確認
+
+既存の `chiikatsu-map.com`、`www`、既存CNAMEは変更しません。今回扱うのは `review` サブドメインだけです。
+
+## マスタデータ
+
+キャンペーン期間と景品区分は、くら寿司の2026年8月10日付プレスリリースで確認しました。初期景品区分はフィギュア、缶バッジ、アクリルマグネットです。
+
+店舗は公式店舗ページで確認できた13店舗のみを先行登録しています。全国全店の収集と緯度・経度の確認は未完了です。推測値は入れず、緯度・経度は `null` にしています。`data/stores.json` を更新したらIDを変えずに `pnpm run db:seed` を実行します。
+
+## 今後の課題
+
+`ROADMAP.md` にまとめています。全店舗マスタの整備を優先し、地図や管理画面は運用上必要になった段階で検討します。

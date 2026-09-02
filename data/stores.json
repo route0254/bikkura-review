@@ -1,0 +1,15 @@
+[
+  { "id": "kura-664", "name": "新宿靖国通り店", "prefecture": "東京都", "city": "新宿区", "address": "東京都新宿区新宿5-17-13 オリエンタルウェーブビル5F", "latitude": null, "longitude": null, "officialUrl": "https://shop.kurasushi.co.jp/detail/664", "active": true },
+  { "id": "kura-662", "name": "アトレ取手店", "prefecture": "茨城県", "city": "取手市", "address": "茨城県取手市中央町2-5 アトレ取手5F", "latitude": null, "longitude": null, "officialUrl": "https://shop.kurasushi.co.jp/detail/662", "active": true },
+  { "id": "kura-14", "name": "柴田本通店", "prefecture": "愛知県", "city": "名古屋市南区", "address": "愛知県名古屋市南区柴田本通1-3-2", "latitude": null, "longitude": null, "officialUrl": "https://shop.kurasushi.co.jp/detail/14", "active": true },
+  { "id": "kura-254", "name": "富山天正寺店", "prefecture": "富山県", "city": "富山市", "address": "富山県富山市天正寺1053", "latitude": null, "longitude": null, "officialUrl": "https://shop.kurasushi.co.jp/detail/254", "active": true },
+  { "id": "kura-143", "name": "金沢入江店", "prefecture": "石川県", "city": "金沢市", "address": "石川県金沢市入江3-15", "latitude": null, "longitude": null, "officialUrl": "https://shop.kurasushi.co.jp/detail/143", "active": true },
+  { "id": "kura-104", "name": "堅田店", "prefecture": "滋賀県", "city": "大津市", "address": "滋賀県大津市今堅田2-39-20", "latitude": null, "longitude": null, "officialUrl": "https://shop.kurasushi.co.jp/detail/104", "active": true },
+  { "id": "kura-547", "name": "なんば日本橋店", "prefecture": "大阪府", "city": "大阪市中央区", "address": "大阪府大阪市中央区難波千日前15-15 BRAVE難波4F", "latitude": null, "longitude": null, "officialUrl": "https://shop.kurasushi.co.jp/detail/547", "active": true },
+  { "id": "kura-273", "name": "アイモール高砂店", "prefecture": "兵庫県", "city": "高砂市", "address": "兵庫県高砂市米田町島25-C-1（アイモール高砂内）", "latitude": null, "longitude": null, "officialUrl": "https://shop.kurasushi.co.jp/detail/273", "active": true },
+  { "id": "kura-537", "name": "岡山北店", "prefecture": "岡山県", "city": "岡山市北区", "address": "岡山県岡山市北区伊島北町4-7", "latitude": null, "longitude": null, "officialUrl": "https://shop.kurasushi.co.jp/detail/537", "active": true },
+  { "id": "kura-489", "name": "広島五日市店", "prefecture": "広島県", "city": "広島市佐伯区", "address": "広島県広島市佐伯区五日市中央7-25-12", "latitude": null, "longitude": null, "officialUrl": "https://shop.kurasushi.co.jp/detail/489", "active": true },
+  { "id": "kura-518", "name": "福岡高木店", "prefecture": "福岡県", "city": "福岡市南区", "address": "福岡県福岡市南区高木1-9-9", "latitude": null, "longitude": null, "officialUrl": "https://shop.kurasushi.co.jp/detail/518", "active": true },
+  { "id": "kura-661", "name": "長崎大波止店", "prefecture": "長崎県", "city": "長崎市", "address": "長崎県長崎市元船町10-5 2F", "latitude": null, "longitude": null, "officialUrl": "https://shop.kurasushi.co.jp/detail/661", "active": true },
+  { "id": "kura-487", "name": "ABLOうるま店", "prefecture": "沖縄県", "city": "うるま市", "address": "沖縄県うるま市字豊原9-1", "latitude": null, "longitude": null, "officialUrl": "https://shop.kurasushi.co.jp/detail/487", "active": true }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "chiikawa-kurasushi-2026-summer",
+    "name": "ちいかわ × くら寿司 コラボキャンペーン",
+    "startsOn": "2026-08-21",
+    "endsOn": "2026-09-30",
+    "sourceUrl": "https://www.kurasushi.co.jp/author/008384.html",
+    "prizeCategories": [
+      { "id": "chiikawa-2026-figure", "name": "フィギュア", "sortOrder": 1 },
+      { "id": "chiikawa-2026-can-badge", "name": "缶バッジ", "sortOrder": 2 },
+      { "id": "chiikawa-2026-acrylic-magnet", "name": "アクリルマグネット", "sortOrder": 3 }
+    ]
+  }
+]

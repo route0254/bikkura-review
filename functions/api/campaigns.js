@@ -1,0 +1,15 @@
+import { cacheHeaders, json, unavailable } from "../_lib/http.js";
+import { mapCampaign } from "../_lib/data.js";
+
+export async function onRequestGet({ env }) {
+  try {
+    const campaigns = (await env.DB.prepare("SELECT id, name, starts_on, ends_on, source_url FROM campaigns WHERE published = 1 ORDER BY starts_on DESC").all()).results;
+    const prizes = (await env.DB.prepare("SELECT id, campaign_id, name, sort_order FROM prize_categories WHERE active = 1 ORDER BY campaign_id, sort_order, id").all()).results;
+    return json({
+      items: campaigns.map((row) => ({
+        ...mapCampaign(row),
+        prizeCategories: prizes.filter((prize) => prize.campaign_id === row.id).map((prize) => ({ id: prize.id, name: prize.name, sortOrder: prize.sort_order })),
+      })),
+    }, { headers: cacheHeaders(300) });
+  } catch (error) { return unavailable(error); }
+}
