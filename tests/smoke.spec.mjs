@@ -3,6 +3,14 @@ import AxeBuilder from "@axe-core/playwright";
 
 test.beforeEach(async ({ page }) => {
   await page.route("https://challenges.cloudflare.com/**", (route) => route.abort());
+  await page.addInitScript(() => {
+    window.__BIKKURA_AUTH_MOCK__ = {
+      enabled: true,
+      user: null,
+      token: "mock-firebase-token",
+      async signIn() { return { uid: "mock-user" }; },
+    };
+  });
 });
 
 test("トップページを表示し、店舗を検索・絞り込みできる", async ({ page }) => {
@@ -27,7 +35,7 @@ test("全国店舗を段階表示し、一覧の全店舗を検索できる", as
   });
   await page.goto("/");
   await expect(page.locator("#store-count")).toHaveText("60 / 552店舗を表示");
-  expect(functionRequests.sort()).toEqual(["/api/campaigns", "/api/stats"]);
+  expect(functionRequests.sort()).toEqual(["/api/campaigns", "/api/posting-status", "/api/stats"]);
   expect(storeMasterRequests).toBe(1);
   expect(functionRequests).not.toContain("/api/stores");
   await expect(page.locator(".store-card")).toHaveCount(60);
@@ -86,4 +94,34 @@ test("キーボード操作と重大なアクセシビリティ違反を確認�
   const results = await new AxeBuilder({ page }).analyze();
   const serious = results.violations.filter((violation) => ["serious", "critical"].includes(violation.impact));
   expect(serious).toEqual([]);
+});
+
+test("Googleログインは任意で匿名状態とログイン状態を切り替えられる", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("#auth-status")).toHaveText("匿名利用中");
+  await page.getByRole("button", { name: "Googleでログイン" }).click();
+  await expect(page.locator("#auth-status")).toHaveText("ログイン中");
+  await expect(page.getByRole("button", { name: "ログアウト" })).toBeVisible();
+});
+
+test("投稿画面に日次上限の状態を表示する", async ({ page }) => {
+  await page.route("**/api/posting-status", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ authenticated: false, accountStatus: "active", dailyLimit: 5, usedToday: 5, remainingToday: 0, canPost: false, message: "本日の匿名投稿上限（5件）に達しました。ログインすると1日20件まで投稿できます。" }),
+  }));
+  await page.goto("/");
+  await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await expect(page.locator("#posting-status")).toContainText("本日の匿名投稿上限（5件）");
+});
+
+test("BAN中は投稿できない理由を表示する", async ({ page }) => {
+  await page.route("**/api/posting-status", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ authenticated: true, accountStatus: "banned", dailyLimit: 0, usedToday: 0, remainingToday: 0, canPost: false, message: "このアカウントからは現在投稿できません。" }),
+  }));
+  await page.goto("/");
+  await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await expect(page.locator("#posting-status")).toHaveText("このアカウントからは現在投稿できません。");
 });

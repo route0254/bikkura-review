@@ -1,0 +1,14 @@
+{
+  "sdkVersion": "12.18.0",
+  "enabledHosts": [
+    "review.chiikatsu-map.com",
+    "localhost",
+    "127.0.0.1"
+  ],
+  "firebase": {
+    "apiKey": "AIzaSyBe2LuxM64clFKqaABFfeRL0OPVNNVSC8I",
+    "authDomain": "chiikatsu-map.firebaseapp.com",
+    "projectId": "chiikatsu-map",
+    "appId": "1:585369925803:web:86d4ede4cb48708b40dfee"
+  }
+}

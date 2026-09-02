@@ -37,6 +37,11 @@
         </a>
         <div class="header-actions">
           <span class="unofficial-label">非公式・利用者投稿データ</span>
+          <div id="auth-controls" class="auth-controls" hidden>
+            <span id="auth-status">匿名利用中</span>
+            <button id="login-button" class="auth-button" type="button">Googleでログイン</button>
+            <button id="logout-button" class="auth-button" type="button" hidden>ログアウト</button>
+          </div>
           <button class="button button-primary" type="button" data-open-report>
             <span aria-hidden="true">＋</span> 結果を投稿
           </button>
@@ -142,6 +147,7 @@
         </div>
         <form id="report-form" class="report-form" novalidate>
           <p class="form-intro">自由記述はありません。実際に利用した結果を、分かる範囲で入力してください。</p>
+          <p id="posting-status" class="posting-status" role="status">匿名投稿は1日5件までです。ログインすると1日20件まで投稿できます。</p>
           <div id="form-errors" class="form-errors" role="alert" tabindex="-1" hidden></div>
           <div class="form-grid">
             <label class="field field-wide" for="report-store"><span>店舗 <b>必須</b></span><select id="report-store" name="storeId" required><option value="">選択してください</option></select></label>
@@ -151,22 +157,22 @@
           <fieldset>
             <legend>タッチパネル</legend>
             <div class="number-grid">
-              <label class="field" for="panel-draws"><span>抽選回数</span><input id="panel-draws" name="panelDraws" type="number" min="0" max="500" inputmode="numeric" value="0" required></label>
-              <label class="field" for="panel-wins"><span>当たり回数</span><input id="panel-wins" name="panelWins" type="number" min="0" max="500" inputmode="numeric" value="0" required></label>
+              <label class="field" for="panel-draws"><span>抽選回数</span><input id="panel-draws" name="panelDraws" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>
+              <label class="field" for="panel-wins"><span>当たり回数</span><input id="panel-wins" name="panelWins" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>
             </div>
           </fieldset>
           <fieldset>
             <legend>スマホ注文</legend>
             <div class="number-grid">
-              <label class="field" for="mobile-draws"><span>抽選回数</span><input id="mobile-draws" name="mobileDraws" type="number" min="0" max="500" inputmode="numeric" value="0" required></label>
-              <label class="field" for="mobile-wins"><span>当たり回数</span><input id="mobile-wins" name="mobileWins" type="number" min="0" max="500" inputmode="numeric" value="0" required></label>
+              <label class="field" for="mobile-draws"><span>抽選回数</span><input id="mobile-draws" name="mobileDraws" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>
+              <label class="field" for="mobile-wins"><span>当たり回数</span><input id="mobile-wins" name="mobileWins" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>
             </div>
           </fieldset>
           <fieldset>
             <legend>受け取った景品</legend>
             <label class="field field-wide breakdown-field" for="prize-breakdown-status"><span>景品の内訳をすべて入力できていますか？ <b>必須</b></span><select id="prize-breakdown-status" name="prizeBreakdownStatus" required><option value="">選択してください</option><option value="complete">すべて入力した</option><option value="partial">一部わからない</option><option value="unknown">内訳は未入力</option></select></label>
             <div id="prize-fields" class="number-grid"></div>
-            <label class="field" for="unknown-prizes"><span>内訳不明</span><input id="unknown-prizes" name="unknownPrizeCount" type="number" min="0" max="500" inputmode="numeric" value="0" required></label>
+            <label class="field" for="unknown-prizes"><span>内訳不明</span><input id="unknown-prizes" name="unknownPrizeCount" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>
           </fieldset>
           <input id="report-campaign" name="campaignId" type="hidden">
           <div id="turnstile-container" class="turnstile-container" aria-label="投稿確認"></div>

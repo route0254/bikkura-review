@@ -31,7 +31,7 @@ pnpm run dev
 
 ## D1
 
-binding名は `DB` です。migrationは `migrations/` の番号順に適用します。既存DBには `0002_improve_statistics.sql` を追加適用してください。
+binding名は `DB` です。migrationは `migrations/` の番号順に適用します。既存DBには `0003_auth_and_abuse_controls.sql` まで追加適用してください。
 
 ```bash
 pnpm run db:migrate
@@ -47,12 +47,14 @@ pnpm run db:seed
 - `stores`: 店舗マスタ
 - `campaigns`: キャンペーン
 - `prize_categories`: キャンペーンごとの景品区分
-- `reports`: 構造化された投稿。`active` / `hidden` と景品内訳状態（`complete` / `partial` / `unknown`）を保持
+- `users`: HMAC変換した内部ユーザーIDと利用状態（`active` / `restricted` / `banned`）
+- `reports`: 投稿本体。`active` / `pending` / `hidden`、景品入力状態、最小限の不正対策メタデータを保持
 - `report_prizes`: 投稿と景品区分の個数
 - `store_campaign_stats`: 店舗・キャンペーン単位の集計
 - `store_campaign_usage_stats`: 店舗・キャンペーン・通常／プラス／不明単位の集計
 - `store_campaign_prize_stats`: 店舗・キャンペーン・景品単位の集計
-- `rate_limits`: 一時的な連投制限用ハッシュ
+- `daily_submission_slots`: 日本時間の日次投稿枠。同時投稿でも上限を超えない複合主キーを使用
+- `rate_limits`: 旧バージョンとの互換用テーブル（新規投稿では未使用）
 - `report_fingerprints`: 1時間以内の同一内容の重複投稿を防ぐ期限付きハッシュ
 
 閲覧時に `reports` 全件を集計せず、投稿時に集計テーブルを更新します。問題のある投稿はD1で `status = 'hidden'` に変更し、`scripts/rebuild-stats.sql` で集計を再構築できます。物理削除は前提にしていません。
@@ -65,6 +67,7 @@ pnpm run db:seed
 - `GET /api/stores/:id/reports?campaign=&limit=`
 - `GET /api/stats?campaign=`
 - `GET /api/config`
+- `GET /api/posting-status`
 - `POST /api/reports`
 
 初期表示では静的な `data/stores.json` と、キャンペーン・疎な集計データの2 APIだけを取得します。一覧APIはフォールバック用途でページングし、直近投稿と期間別集計は店舗詳細を開いたときだけ取得します。GETの全国集計・店舗集計は30〜300秒の短いCDNキャッシュを許可しています。投稿直後は表示反映が少し遅れる場合があります。
@@ -75,16 +78,23 @@ pnpm run db:seed
 
 ## 投稿の処理
 
-1. 画面で回数、日付、景品数の矛盾を検査
-2. Pages Functionsで同じ内容を再検査
-3. 店舗・キャンペーン・景品IDをD1で確認
-4. Turnstile tokenをSiteverify APIで検証
-5. 送信元IPを保存せず、IP・秘密のsalt・時間枠からSHA-256ハッシュを作成
-6. 10分に5件までの簡易連投制限を確認
-7. 同じ利用者・同じ内容の投稿を期限付きハッシュで1時間拒否
-8. Prepared StatementとD1 batchで投稿・景品・集計値をまとめて更新
+1. 画面とPages Functionsの両方で回数、日付、景品数、1投稿300抽選までの上限を検証
+2. 店舗・キャンペーン・景品IDをD1で確認
+3. Turnstile tokenをSiteverify APIで検証
+4. AuthorizationがあればFirebase ID tokenをサーバーで検証し、HMAC内部IDと利用状態を確認
+5. 日本時間の日次投稿枠と、同一内容を1時間拒否する指紋ハッシュを確認
+6. 過度な投稿量だけを保守的に採点し、必要なら`pending`として保存
+7. Prepared StatementとD1 batchで投稿・景品・日次枠・`active`投稿の集計値をまとめて更新
 
-自由記述、アカウント、星評価は扱いません。
+自由記述と星評価は扱いません。Googleログインは任意で、匿名でも投稿できます。メールアドレスや表示名は保存しません。
+
+## 任意ログインと不正対策
+
+- Firebase AuthenticationのGoogleログインを任意で利用できます。匿名は1日5件、通常ログインは1日20件、制限中ユーザーは1日5件です（日本時間0時に更新）。
+- Pages FunctionsはFirebase ID tokenの署名、issuer、audience、有効期限、subjectを検証します。Firebase UIDは保存せず、`USER_ID_SECRET`によるHMAC内部IDだけを保存します。
+- 全投稿でTurnstileと1時間の重複防止を継続します。明らかに大きい投稿や短時間の集中だけを保守的に採点し、高リスク投稿は`pending`として公開集計から除外します。
+- 送信元の生IPは保存しません。日次制限用ハッシュと、14日ごとに変わる調査用ハッシュを使い、投稿から30日を超えた値を削除します。
+- 調査・BAN・解除手順は `docs/ABUSE-OPERATIONS.md`、管理SQLは `scripts/admin-*.sql` にあります。公開状態を変えた後は `scripts/rebuild-stats.sql` を実行します。
 
 ## Turnstile
 
@@ -93,8 +103,11 @@ Cloudflare Pagesの環境変数・Secretに次を設定します。
 - `TURNSTILE_SITE_KEY`: 公開用sitekey
 - `TURNSTILE_SECRET_KEY`: Secret
 - `RATE_LIMIT_SALT`: 十分に長いランダム値のSecret
+- `ABUSE_HASH_SALT`: 日次制限・短期調査用HMACの独立したSecret
+- `USER_ID_SECRET`: Firebase UIDを内部IDへ変換する独立したSecret
 
 本番の値は `.dev.vars` やGitへ入れません。ブラウザに配置するだけでなく、Pages FunctionsからSiteverify APIへ送って検証します。
+`USER_ID_SECRET` を変更すると既存ユーザーを同一人物として判定できなくなります。漏えい対応を除き、運用開始後は変更しないでください。`ABUSE_HASH_SALT` も定期ローテーションではなく、コード側の期間スコープでハッシュを14日ごとに変えます。
 
 ## テスト
 
@@ -109,19 +122,18 @@ pnpm run build
 
 ## Cloudflare Pagesへ公開する手順
 
-1. GitHubで `bikkura-review` リポジトリを作り、このプロジェクトをpush
-2. CloudflareでD1データベースを作り、`wrangler.jsonc` の `database_id` を更新
-3. リモートD1へmigrationとseedを適用
-4. Cloudflare PagesでGitHubリポジトリを接続
-5. build commandを `pnpm run build`、output directoryを `dist`、Node.jsを22に設定
-6. PagesのSettingsでD1 binding `DB` を作成
-7. Turnstile widgetを作り、上記3変数をPagesの環境変数・Secretへ設定
-8. Pagesを一度デプロイし、`<project>.pages.dev` で表示と投稿を確認
-9. PagesのCustom domainsで `review.chiikatsu-map.com` を登録
-10. 現在のDNS管理サービスで `review.chiikatsu-map.com CNAME <project>.pages.dev` を設定
-11. HTTPS、canonical、robots、sitemap、投稿を再確認
+1. GitHubの `bikkura-review` リポジトリとCloudflare Pagesを接続
+2. D1 binding `DB`、build command `pnpm run build`、output directory `dist`、Node.js 22を設定
+3. Firebase AuthenticationでGoogleプロバイダーを有効化
+4. Firebase Authorized domainsへ `review.chiikatsu-map.com` を追加（APIキーを制限している場合は同ドメインも許可）
+5. Cloudflare Pagesに `TURNSTILE_SECRET_KEY`、`RATE_LIMIT_SALT`、`ABUSE_HASH_SALT`、`USER_ID_SECRET` をSecretとして設定
+6. リモートD1へ `0003_auth_and_abuse_controls.sql` までmigrationを適用
+7. Pagesを一度だけ再デプロイ
+8. 匿名投稿、Googleログイン、ログアウト、残り投稿件数、上限到達時の表示を確認
+9. `pending`投稿が公開集計・最近の投稿に含まれないことを確認
+10. 本番ドメインのHTTPS、canonical、robots、sitemapを確認
 
-既存の `chiikatsu-map.com`、`www`、既存CNAMEは変更しません。今回扱うのは `review` サブドメインだけです。
+認証設定やSecretが不足している間はGoogleログインUIを表示せず、既存の匿名投稿を継続します。migrationより先に新しいFunctionsを本番反映しないでください。
 
 ## マスタデータ
 

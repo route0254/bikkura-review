@@ -1,9 +1,10 @@
 import { normalizeSearchText } from "/lib/search.js";
 import { hasEnoughPrizeData, hasEnoughRateData } from "/lib/stats.js";
 import { validateReportPayload } from "/lib/validation.js";
+import { getIdToken, initializeAuth, signIn, signOut } from "/auth.js";
 
 const STORE_RENDER_BATCH_SIZE = 60;
-const state = { stores: [], campaigns: [], campaign: null, stats: null, selectedStoreId: null, lastTrigger: null, visibleStoreCount: STORE_RENDER_BATCH_SIZE };
+const state = { stores: [], campaigns: [], campaign: null, stats: null, selectedStoreId: null, lastTrigger: null, visibleStoreCount: STORE_RENDER_BATCH_SIZE, auth: { enabled: false, authenticated: false }, posting: null };
 let turnstileWidgetId = null;
 let turnstileLoader = null;
 
@@ -30,7 +31,43 @@ const elements = {
   prizeFields: document.querySelector("#prize-fields"),
   formErrors: document.querySelector("#form-errors"),
   formStatus: document.querySelector("#form-status"),
+  authControls: document.querySelector("#auth-controls"),
+  authStatus: document.querySelector("#auth-status"),
+  loginButton: document.querySelector("#login-button"),
+  logoutButton: document.querySelector("#logout-button"),
+  postingStatus: document.querySelector("#posting-status"),
 };
+
+function renderAuth(authState) {
+  state.auth = authState;
+  elements.authControls.hidden = !authState.enabled;
+  elements.loginButton.hidden = !authState.enabled || authState.authenticated;
+  elements.logoutButton.hidden = !authState.enabled || !authState.authenticated;
+  elements.authStatus.textContent = authState.authenticated ? "ログイン中" : "匿名利用中";
+  refreshPostingStatus();
+}
+
+async function authHeaders() {
+  const token = await getIdToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function refreshPostingStatus() {
+  if (!elements.postingStatus) return;
+  try {
+    const response = await fetch("/api/posting-status", { headers: { Accept: "application/json", ...await authHeaders() }, cache: "no-store" });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error);
+    state.posting = result;
+    elements.postingStatus.textContent = result.accountStatus === "banned" || !result.canPost
+      ? result.message
+      : `${result.authenticated ? "ログイン投稿" : "匿名投稿"}：本日はあと${result.remainingToday}件投稿できます（上限${result.dailyLimit}件・日本時間0時に更新）。`;
+  } catch {
+    elements.postingStatus.textContent = state.auth.authenticated
+      ? "投稿可能件数を確認できませんでした。"
+      : "匿名投稿は1日5件までです。ログインすると1日20件まで投稿できます。";
+  }
+}
 
 function escapeHtml(value = "") {
   return String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
@@ -156,7 +193,7 @@ function populateStoreControls() {
 }
 
 function renderPrizeFields(prizes) {
-  elements.prizeFields.innerHTML = prizes.map((prize) => `<label class="field" for="prize-${escapeHtml(prize.id)}"><span>${escapeHtml(prize.name)}</span><input id="prize-${escapeHtml(prize.id)}" name="prize:${escapeHtml(prize.id)}" type="number" min="0" max="500" inputmode="numeric" value="0" required></label>`).join("");
+  elements.prizeFields.innerHTML = prizes.map((prize) => `<label class="field" for="prize-${escapeHtml(prize.id)}"><span>${escapeHtml(prize.name)}</span><input id="prize-${escapeHtml(prize.id)}" name="prize:${escapeHtml(prize.id)}" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>`).join("");
 }
 
 async function openStore(storeId, trigger) {
@@ -254,6 +291,7 @@ function openReport(storeId, trigger) {
   elements.formErrors.hidden = true;
   elements.formStatus.textContent = "";
   elements.reportDialog.showModal();
+  refreshPostingStatus();
   ensureTurnstile();
 }
 
@@ -312,10 +350,15 @@ async function submitReport(event) {
   const submit = elements.reportForm.querySelector('[type="submit"]');
   submit.disabled = true; elements.formStatus.textContent = "送信しています…";
   try {
-    const response = await fetch("/api/reports", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(payload) });
+    const response = await fetch("/api/reports", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json", ...await authHeaders() }, body: JSON.stringify(payload) });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error ?? "投稿を送信できませんでした。");
-    elements.formErrors.hidden = true; elements.formStatus.textContent = "投稿ありがとうございました。集計への反映には少し時間がかかる場合があります。";
+    if (!response.ok) throw new Error(result.errors?.join(" ") ?? result.error ?? "投稿を送信できませんでした。");
+    state.posting = result.posting;
+    elements.formErrors.hidden = true;
+    elements.formStatus.textContent = result.status === "pending"
+      ? "投稿ありがとうございます。内容を確認してから集計に反映します。"
+      : "投稿ありがとうございました。集計への反映には少し時間がかかる場合があります。";
+    if (result.posting) elements.postingStatus.textContent = `本日はあと${result.posting.remainingToday}件投稿できます。`;
     elements.reportForm.reset();
     elements.reportCampaign.value = state.campaign?.id ?? "";
     if (window.turnstile && turnstileWidgetId !== null) window.turnstile.reset(turnstileWidgetId);
@@ -349,6 +392,16 @@ function bindEvents() {
   elements.storeDialog.addEventListener("cancel", (event) => { event.preventDefault(); closeStore(); });
   elements.reportDialog.addEventListener("cancel", (event) => { event.preventDefault(); closeReport(); });
   elements.reportForm.addEventListener("submit", submitReport);
+  elements.loginButton.addEventListener("click", async () => {
+    elements.loginButton.disabled = true;
+    try { await signIn(); } catch (error) { elements.authStatus.textContent = error.message; }
+    finally { elements.loginButton.disabled = false; }
+  });
+  elements.logoutButton.addEventListener("click", async () => {
+    elements.logoutButton.disabled = true;
+    try { await signOut(); } catch (error) { elements.authStatus.textContent = error.message; }
+    finally { elements.logoutButton.disabled = false; }
+  });
 }
 
 async function loadData() {
@@ -368,4 +421,5 @@ async function loadData() {
 }
 
 bindEvents();
+initializeAuth(renderAuth);
 loadData();

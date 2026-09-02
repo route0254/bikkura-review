@@ -17,6 +17,9 @@
     "db:seed": "node scripts/build-seed-sql.mjs && wrangler d1 execute DB --local --file=seed/seed.sql",
     "build": "pnpm run check && pnpm run test:unit && node scripts/build.mjs"
   },
+  "dependencies": {
+    "jose": "6.1.0"
+  },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
     "@playwright/test": "1.62.1",

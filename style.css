@@ -54,6 +54,9 @@ button { cursor: pointer; }
 .brand-mark span { width: 14px; height: 5px; border-radius: 0 0 10px 10px; transform: translateY(9px); }
 .header-actions { display: flex; align-items: center; gap: 14px; }
 .unofficial-label { color: var(--muted); font-size: .76rem; white-space: nowrap; }
+.auth-controls { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: .72rem; white-space: nowrap; }
+.auth-controls[hidden], .auth-button[hidden] { display: none; }
+.auth-button { border: 1px solid var(--line); border-radius: 9px; padding: 7px 9px; background: #fff; color: var(--text); font: inherit; font-weight: 700; }
 .button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid transparent; border-radius: 12px; padding: 9px 17px; font-weight: 700; transition: transform .16s ease, background .16s ease, box-shadow .16s ease; }
 .button:hover { transform: translateY(-1px); }
 .button-primary { background: var(--pink-strong); color: #fff; box-shadow: 0 7px 16px rgba(187, 65, 112, .18); }
@@ -157,6 +160,7 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
 .report-dialog { width: min(calc(100% - 24px), 760px); }
 .report-form { padding: 22px; }
 .form-intro { margin: 0 0 18px; color: var(--muted); font-size: .86rem; }
+.posting-status { margin: -7px 0 16px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--lavender-soft); color: var(--text); font-size: .8rem; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
 .field-wide { grid-column: 1 / -1; }
 .report-form fieldset { margin: 20px 0 0; padding: 15px; border: 1px solid var(--line); border-radius: var(--radius-md); }
@@ -179,6 +183,7 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
 
 @media (max-width: 820px) {
   .unofficial-label { display: none; }
+  .auth-controls > span { display: none; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .store-grid { grid-template-columns: repeat(2, 1fr); }
   .footer-inner { grid-template-columns: 1fr; gap: 10px; padding-block: 24px; }

@@ -64,3 +64,8 @@ test("未来日とキャンペーン期間外を拒否する", () => {
   assert.ok(future.some((error) => error.includes("今日以前")));
   assert.ok(before.some((error) => error.includes("キャンペーン期間内")));
 });
+
+test("1件の抽選回数は合計300回まで", () => {
+  const errors = validateReportPayload({ ...valid, panelDraws: 200, panelWins: 6, mobileDraws: 101, mobileWins: 1 }, context);
+  assert.ok(errors.some((error) => error.includes("合計300回")));
+});

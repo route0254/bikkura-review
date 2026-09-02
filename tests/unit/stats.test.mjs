@@ -6,6 +6,7 @@ test("公開中の投稿だけを集計する", () => {
   const summary = summarizeReports([
     { panelDraws: 18, panelWins: 6, mobileDraws: 3, mobileWins: 1, usageType: "normal", prizeBreakdownStatus: "partial", unknownPrizeCount: 1, prizes: [{ prizeCategoryId: "prize-1", quantity: 6 }], status: "active" },
     { panelDraws: 100, panelWins: 100, mobileDraws: 0, mobileWins: 0, usageType: "plus", prizeBreakdownStatus: "complete", unknownPrizeCount: 0, prizes: [], status: "hidden" },
+    { panelDraws: 80, panelWins: 80, mobileDraws: 0, mobileWins: 0, usageType: "plus", prizeBreakdownStatus: "complete", unknownPrizeCount: 0, prizes: [], status: "pending" },
   ]);
   assert.equal(summary.reportCount, 1);
   assert.equal(summary.totalPrizeCount, 7);
