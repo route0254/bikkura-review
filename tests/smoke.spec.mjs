@@ -184,6 +184,7 @@ test("店舗詳細で通常投稿と外部参考情報を分離し、0・不明�
         id: "external-x", sourceType: "external", visitDate: "2026-08-21", visitDateLabel: null,
         externalPlatform: "x", externalPlatformLabel: "X", externalUrl: "https://example.com/source",
         resultPrecision: "partial", usageType: "unknown", totalPrizes: 0, totalPrizesKind: "exact",
+        spendAmountYen: 5000, spendAmountKind: "approx",
         prizes: [{ id: "figure", name: "フィギュア", quantity: 0, quantityKind: "exact" }], items: [],
       },
       {
@@ -211,6 +212,7 @@ test("店舗詳細で通常投稿と外部参考情報を分離し、0・不明�
   await expect(external).toContainText("0個");
   await expect(external).toContainText("不明");
   await expect(external).toContainText("1個以上");
+  await expect(external).toContainText("約5,000円");
   await expect(external).toContainText("一部情報のみ");
   await expect(external).toContainText("2026年8月23日頃");
   await expect(external).toContainText("出典URL確認中");
@@ -249,8 +251,8 @@ test("実DBの外部seedを取得しても全国統計とランキングは0件�
   const external = await externalResponse.json();
   const stats = await statsResponse.json();
   const ranking = await rankingResponse.json();
-  expect(external.items).toHaveLength(1);
-  expect(external.items[0].externalUrl).toBeNull();
+  expect(external.items).toHaveLength(2);
+  expect(external.items.every((item) => item.externalUrl?.startsWith("https://"))).toBeTruthy();
   expect(stats.reportCount).toBe(0);
   expect(stats.totalPrizeCount).toBe(0);
   expect(stats.stores.find((store) => store.storeId === "kura-87")).toMatchObject({ reportCount: 0, externalCollectionCount: 2 });
@@ -266,7 +268,7 @@ test("出典URL確認中の外部収集情報を店舗詳細で公開する", as
   await firstCard.getByRole("button", { name: /結果を見る/ }).click();
   await expect(page.locator("#external-reports .external-report-card")).toHaveCount(2);
   await expect(page.locator("#external-reports")).toContainText("食べログ");
-  await expect(page.locator("#external-reports")).toContainText("出典URL確認中");
+  await expect(page.locator("#external-reports").getByRole("link", { name: /出典を見る/ })).toHaveCount(2);
 });
 
 test("本人投稿APIは未認証アクセスを拒否する", async ({ request }) => {

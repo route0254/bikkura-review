@@ -31,7 +31,7 @@ pnpm run dev
 
 ## D1
 
-binding名は `DB` です。migrationは `migrations/` の番号順に適用します。既存DBには `0007_total_prize_input.sql` まで追加適用してください。`0006` と `0007` は既存テーブルを再構築しない追加型migrationです。
+binding名は `DB` です。migrationは `migrations/` の番号順に適用します。既存DBには `0008_external_report_spend.sql` まで追加適用してください。`0006`〜`0008` は既存テーブルを再構築しない追加型migrationです。
 
 ```bash
 pnpm run db:migrate
@@ -105,7 +105,7 @@ pnpm run db:seed
 
 X・Google Maps・食べログ・ブログ等の一般公開情報から確認した構造化データは、`reports` ではなく外部専用テーブルへ保存します。直接投稿の全国・店舗・期間別統計、景品割合、ランキング、risk・BAN判定には一切含めません。店舗詳細を開いた場合だけ専用APIから最大10件を読み込み、投稿本文・投稿者名・アカウントID・画像は保存または転載しません。
 
-元データは `seed/external-reports.json`、生成SQLは `seed/external-reports.sql` です。`externalUrl` が未確認なら `null`、確認済み0個は `0`、不明な数量は `null` と `quantityKind: "unknown"` を使います。URLがある場合はプラットフォーム・URL・店舗の組み合わせで重複を防ぎます。
+元データは `seed/external-reports.json`、生成SQLは `seed/external-reports.sql` です。`externalUrl` が未確認なら `null`、確認済み0個は `0`、不明な数量は `null` と `quantityKind: "unknown"` を使います。利用金額を確認できた場合だけ `spendAmountYen` と `spendAmountKind`（`exact` / `approx` / `at_least`）を保存し、金額から抽選数や景品数は推測しません。URLがある場合はプラットフォーム・URL・店舗の組み合わせで重複を防ぎます。
 
 ```bash
 # ローカルD1へ検証・生成・upsert
@@ -170,7 +170,7 @@ pnpm run build
 3. Firebase AuthenticationでGoogleプロバイダーを有効化
 4. Firebase Authorized domainsへ `review.chiikatsu-map.com` を追加（APIキーを制限している場合は同ドメインも許可）
 5. Cloudflare Pagesに `TURNSTILE_SECRET_KEY`、`RATE_LIMIT_SALT`、`ABUSE_HASH_SALT`、`USER_ID_SECRET` をSecretとして設定
-6. リモートD1へ `0007_total_prize_input.sql` までmigrationを適用し、通常seedとexternal seedを投入
+6. リモートD1へ `0008_external_report_spend.sql` までmigrationを適用し、通常seedとexternal seedを投入
 7. Pagesを一度だけ再デプロイ
 8. 匿名投稿、Googleログイン、ログアウト、残り投稿件数、上限到達時の表示を確認
 9. `pending`投稿が公開集計・最近の投稿に含まれないことを確認

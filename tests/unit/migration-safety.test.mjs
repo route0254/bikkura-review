@@ -21,3 +21,10 @@ test("0007も既存投稿を保持し、合計景品入力を追加するmigrati
   assert.match(sql, /CREATE VIEW active_draw_prize_reports/i);
   assert.match(sql, /CREATE VIEW report_observed_prizes/i);
 });
+
+test("0008は外部参考情報へ利用金額だけを追加するmigrationである", async () => {
+  const sql = await readFile(new URL("../../migrations/0008_external_report_spend.sql", import.meta.url), "utf8");
+  assert.doesNotMatch(sql, /DROP\s+(?:TABLE|COLUMN)|DELETE\s+FROM|CREATE\s+TABLE\s+external_reports\b/i);
+  assert.match(sql, /ALTER TABLE external_reports[\s\S]*ADD COLUMN spend_amount_yen/i);
+  assert.match(sql, /ALTER TABLE external_reports[\s\S]*ADD COLUMN spend_amount_kind/i);
+});

@@ -18,7 +18,7 @@ export async function onRequestGet({ request, env, params }) {
       SELECT id, visit_date, visit_date_label, external_platform, external_url,
         external_observed_at, evidence_quality, result_precision, usage_type,
         panel_draws, panel_wins, mobile_draws, mobile_wins,
-        total_prizes, total_prizes_kind
+        total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind
       FROM external_reports
       WHERE store_id = ? AND campaign_id = ? AND source_type = 'external'
         AND status = 'active'
@@ -72,6 +72,8 @@ export async function onRequestGet({ request, env, params }) {
         mobileWins: nullableNumber(report.mobile_wins),
         totalPrizes: nullableNumber(report.total_prizes),
         totalPrizesKind: report.total_prizes_kind,
+        spendAmountYen: nullableNumber(report.spend_amount_yen),
+        spendAmountKind: report.spend_amount_kind,
         prizes: prizes.filter((prize) => prize.external_report_id === report.id).map((prize) => ({
           id: prize.id,
           name: prize.name,

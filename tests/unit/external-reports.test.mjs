@@ -4,6 +4,7 @@ import {
   EXTERNAL_PLATFORM_LABELS,
   filterPublicExternalReports,
   formatExternalQuantity,
+  formatExternalSpend,
   validateExternalReports,
 } from "../../lib/external-reports.js";
 
@@ -32,6 +33,8 @@ const valid = {
   mobileWins: null,
   totalPrizes: 1,
   totalPrizesKind: "exact",
+  spendAmountYen: null,
+  spendAmountKind: "unknown",
   prizes: [{ prizeCategoryId: "figure", quantity: 1, quantityKind: "exact" }],
   items: [{ prizeCategoryId: "figure", prizeItemId: "figure-chiikawa", quantity: 1, quantityKind: "exact" }],
   noteInternal: "構造化した短い確認メモ",
@@ -69,6 +72,15 @@ test("0個と不明、1個以上を区別する", () => {
   assert.equal(formatExternalQuantity(0, "exact"), "0個");
   assert.equal(formatExternalQuantity(null, "unknown"), "不明");
   assert.equal(formatExternalQuantity(1, "at_least"), "1個以上");
+});
+
+test("利用金額の正確・約・以上・不明を区別する", () => {
+  assert.equal(formatExternalSpend(5000, "exact"), "5,000円");
+  assert.equal(formatExternalSpend(5000, "approx"), "約5,000円");
+  assert.equal(formatExternalSpend(6000, "at_least"), "6,000円以上");
+  assert.equal(formatExternalSpend(null, "unknown"), null);
+  assert.deepEqual(validateExternalReports([{ ...valid, spendAmountYen: 5000, spendAmountKind: "approx" }], context), []);
+  assert.ok(validateExternalReports([{ ...valid, spendAmountYen: 5000, spendAmountKind: "unknown" }], context).some((error) => error.includes("利用金額")));
 });
 
 test("external URLの同一店舗での重複を拒否し、別店舗は許容する", () => {

@@ -11,12 +11,14 @@ for (const report of reports) {
   id, source_type, store_id, campaign_id, visit_date, visit_date_label,
   external_platform, external_url, external_observed_at, evidence_quality,
   result_precision, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
-  total_prizes, total_prizes_kind, note_internal, status, created_at, updated_at
+  total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind,
+  note_internal, status, created_at, updated_at
 ) VALUES (
   ${quote(report.id)}, 'external', ${quote(report.storeId)}, ${quote(report.campaignId)}, ${quote(report.visitDate)}, ${quote(report.visitDateLabel)},
   ${quote(report.externalPlatform)}, ${quote(report.externalUrl)}, ${quote(report.externalObservedAt)}, ${quote(report.evidenceQuality)},
   ${quote(report.resultPrecision)}, ${quote(report.usageType)}, ${report.panelDraws ?? "NULL"}, ${report.panelWins ?? "NULL"}, ${report.mobileDraws ?? "NULL"}, ${report.mobileWins ?? "NULL"},
-  ${report.totalPrizes ?? "NULL"}, ${quote(report.totalPrizesKind)}, ${quote(report.noteInternal)}, ${quote(report.status)}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+  ${report.totalPrizes ?? "NULL"}, ${quote(report.totalPrizesKind)}, ${report.spendAmountYen ?? "NULL"}, ${quote(report.spendAmountKind ?? "unknown")},
+  ${quote(report.noteInternal)}, ${quote(report.status)}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT(id) DO UPDATE SET
   source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
   visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
@@ -26,6 +28,7 @@ for (const report of reports) {
   panel_draws=excluded.panel_draws, panel_wins=excluded.panel_wins,
   mobile_draws=excluded.mobile_draws, mobile_wins=excluded.mobile_wins,
   total_prizes=excluded.total_prizes, total_prizes_kind=excluded.total_prizes_kind,
+  spend_amount_yen=excluded.spend_amount_yen, spend_amount_kind=excluded.spend_amount_kind,
   note_internal=excluded.note_internal, status=excluded.status, updated_at=CURRENT_TIMESTAMP;`);
   sql.push(`DELETE FROM external_report_items WHERE external_report_id = ${quote(report.id)};`);
   sql.push(`DELETE FROM external_report_prizes WHERE external_report_id = ${quote(report.id)};`);

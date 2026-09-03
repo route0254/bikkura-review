@@ -1,5 +1,5 @@
 import { filterStoresByPrefecture, sortPrefectures } from "/lib/prefectures.js";
-import { EXTERNAL_PLATFORM_LABELS, formatExternalQuantity } from "/lib/external-reports.js";
+import { EXTERNAL_PLATFORM_LABELS, formatExternalQuantity, formatExternalSpend } from "/lib/external-reports.js";
 import { hasEnoughItemData, hasEnoughPrizeData, hasEnoughRateData, prizeShares } from "/lib/stats.js";
 import { validateReportPayload } from "/lib/validation.js";
 import { getIdToken, initializeAuth, signIn, signOut } from "/auth.js";
@@ -324,10 +324,12 @@ function renderExternalReports(reports, collectedCount = 0) {
     const date = report.visitDate ? report.visitDate.replaceAll("-", "/") : report.visitDateLabel || "来店日不明";
     const categories = (report.prizes ?? []).map((prize) => `<li><span>${escapeHtml(prize.name)}</span><strong>${escapeHtml(formatExternalQuantity(prize.quantity, prize.quantityKind))}</strong></li>`).join("");
     const items = (report.items ?? []).map((item) => `<li><span>${escapeHtml(item.prizeCategoryName)}・${escapeHtml(item.name)}</span><strong>${escapeHtml(formatExternalQuantity(item.quantity, item.quantityKind))}</strong></li>`).join("");
+    const spend = formatExternalSpend(report.spendAmountYen, report.spendAmountKind);
+    const spendSummary = spend ? `<div><dt>利用金額</dt><dd>${escapeHtml(spend)}</dd></div>` : "";
     const sourceLink = report.externalUrl
       ? `<a class="external-source-link" href="${escapeHtml(report.externalUrl)}" target="_blank" rel="noopener noreferrer">出典を見る<span aria-hidden="true"> ↗</span></a>`
       : `<span class="external-source-missing">出典URL確認中</span>`;
-    return `<article class="external-report-card"><header><div><strong>${escapeHtml(report.externalPlatformLabel ?? EXTERNAL_PLATFORM_LABELS[report.externalPlatform] ?? "その他")}</strong><time>${escapeHtml(date)}</time></div><span class="external-precision">${escapeHtml(precisionLabels[report.resultPrecision] ?? "確認できた範囲")}</span></header><dl class="external-summary"><div><dt>景品総数</dt><dd>${escapeHtml(formatExternalQuantity(report.totalPrizes, report.totalPrizesKind))}</dd></div><div><dt>利用区分</dt><dd>${escapeHtml(usageLabels[report.usageType] ?? usageLabels.unknown)}</dd></div></dl>${categories ? `<ul class="external-breakdown">${categories}</ul>` : ""}${items ? `<div class="external-items"><span>確認できた個別景品</span><ul>${items}</ul></div>` : ""}<footer>${sourceLink}</footer></article>`;
+    return `<article class="external-report-card"><header><div><strong>${escapeHtml(report.externalPlatformLabel ?? EXTERNAL_PLATFORM_LABELS[report.externalPlatform] ?? "その他")}</strong><time>${escapeHtml(date)}</time></div><span class="external-precision">${escapeHtml(precisionLabels[report.resultPrecision] ?? "確認できた範囲")}</span></header><dl class="external-summary"><div><dt>景品総数</dt><dd>${escapeHtml(formatExternalQuantity(report.totalPrizes, report.totalPrizesKind))}</dd></div>${spendSummary}<div><dt>利用区分</dt><dd>${escapeHtml(usageLabels[report.usageType] ?? usageLabels.unknown)}</dd></div></dl>${categories ? `<ul class="external-breakdown">${categories}</ul>` : ""}${items ? `<div class="external-items"><span>確認できた個別景品</span><ul>${items}</ul></div>` : ""}<footer>${sourceLink}</footer></article>`;
   }).join("");
   const pendingNote = pendingCount > 0 ? `<p class="section-note section-note-left">このほか、出典確認中の外部収集情報が${pendingCount.toLocaleString("ja-JP")}件あります。</p>` : "";
   target.innerHTML = `${publicCards}${pendingNote}`;
