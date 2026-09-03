@@ -120,9 +120,10 @@ test("店舗詳細を開閉し、フォーカスを戻す", async ({ page }) => 
 test("不正な回数は投稿前にエラーになる", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await page.locator('[name="resultInputMode"][value="detailed"]').check();
   await page.getByLabel("都道府県 必須").selectOption("東京都");
   await page.getByLabel("店舗 必須").selectOption("kura-664");
-  await page.getByLabel("景品の内訳をすべて入力できていますか？ 必須").selectOption("partial");
+  await page.getByLabel("景品の内訳をどこまで入力できますか？ 必須").selectOption("partial");
   await page.locator("#panel-draws").fill("1");
   await page.locator("#panel-wins").fill("2");
   await page.getByRole("button", { name: "この内容で投稿" }).click();
@@ -132,6 +133,7 @@ test("不正な回数は投稿前にエラーになる", async ({ page }) => {
 test("投稿フォームで都道府県から店舗を絞り込み、個別景品内訳を任意入力できる", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await page.locator('[name="resultInputMode"][value="detailed"]').check();
   const storeSelect = page.getByLabel("店舗 必須");
   await expect(storeSelect).toBeDisabled();
   await page.getByLabel("都道府県 必須").selectOption("東京都");
@@ -386,10 +388,11 @@ test("BAN中は投稿できない理由を表示する", async ({ page }) => {
 test("確定セット等をパネル・スマホと同列で入力し、景品内訳は合計だけ入力する", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await page.locator('[name="resultInputMode"][value="detailed"]').check();
   await expect(page.getByRole("group", { name: "タッチパネル" })).toBeVisible();
   await expect(page.getByRole("group", { name: "スマホ注文" })).toBeVisible();
-  await expect(page.getByRole("group", { name: "ビッくらポン！確定のセット等" })).toBeVisible();
-  await page.getByLabel("抽選なしでもらった景品数").fill("2");
+  await expect(page.getByRole("group", { name: "抽選なしでもらった景品" })).toBeVisible();
+  await page.getByLabel("確定セット・対象商品など").fill("2");
   await expect(page.getByRole("group", { name: "今回もらった景品の合計" }).getByRole("spinbutton")).toHaveCount(4);
 });
 
@@ -405,12 +408,13 @@ test("投稿時に合計景品を送信し、Turnstile失敗時は確認を更�
   });
   await page.goto("/");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await page.locator('[name="resultInputMode"][value="detailed"]').check();
   await page.getByLabel("都道府県 必須").selectOption("東京都");
   await page.getByLabel("店舗 必須").selectOption("kura-664");
   await page.locator("#panel-draws").fill("1");
   await page.locator("#panel-wins").fill("1");
-  await page.getByLabel("抽選なしでもらった景品数").fill("1");
-  await page.getByLabel("景品の内訳をすべて入力できていますか？ 必須").selectOption("complete");
+  await page.getByLabel("確定セット・対象商品など").fill("1");
+  await page.getByLabel("景品の内訳をどこまで入力できますか？ 必須").selectOption("complete");
   await page.locator("#prize-total\\:chiikawa-2026-figure").fill("2");
   await page.getByRole("button", { name: "この内容で投稿" }).click();
   const formError = page.getByRole("alert");

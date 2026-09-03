@@ -1,4 +1,4 @@
-import { getCampaign, mapCampaign, mapStore, mapUsageStats } from "../../_lib/data.js";
+import { getCampaign, mapCampaign, mapSimpleSummary, mapStore, mapUsageStats } from "../../_lib/data.js";
 import { apiError, cacheHeaders, json, unavailable } from "../../_lib/http.js";
 import { periodStartDate } from "../../../lib/stats.js";
 import { todayInJapan } from "../../../lib/validation.js";
@@ -32,6 +32,20 @@ async function allPeriodStats(db, storeId, campaignId) {
   return { totals: totals ?? {}, completeReports: Number(completeReports?.complete_report_count ?? 0), usage: usageResult.results, prizes: prizeResult.results };
 }
 
+async function simpleReportStats(db, storeId, campaignId, startDate, endDate) {
+  const dateClause = startDate ? "AND visit_date BETWEEN ? AND ?" : "";
+  const bindings = startDate ? [storeId, campaignId, startDate, endDate] : [storeId, campaignId];
+  return db.prepare(`
+    SELECT COUNT(*) AS report_count,
+      COALESCE(SUM(spend_amount_yen), 0) AS spend_amount_yen,
+      COALESCE(SUM(reported_prize_count), 0) AS reported_prize_count,
+      COALESCE(SUM(reported_total_draws), 0) AS reported_draw_count,
+      COUNT(reported_total_draws) AS draw_count_report_count
+    FROM active_simple_reports
+    WHERE store_id = ? AND campaign_id = ? ${dateClause}
+  `).bind(...bindings).first();
+}
+
 async function recentPeriodStats(db, storeId, campaignId, startDate, endDate) {
   const bindings = [storeId, campaignId, startDate, endDate];
   const [totals, usageResult, prizeResult] = await Promise.all([
@@ -42,10 +56,12 @@ async function recentPeriodStats(db, storeId, campaignId, startDate, endDate) {
         COALESCE(SUM(mobile_draws), 0) AS total_mobile_draws,
         COALESCE(SUM(mobile_wins), 0) AS total_mobile_wins,
         COALESCE(SUM(CASE
+          WHEN result_input_mode = 'simple' THEN 0
           WHEN prize_input_mode = 'total' THEN panel_wins + mobile_wins
           ELSE unknown_prize_count + COALESCE((SELECT SUM(quantity) FROM report_prizes WHERE report_id = reports.id), 0)
         END), 0) AS total_prize_count,
         COALESCE(SUM(CASE WHEN prize_breakdown_status = 'complete'
+          AND result_input_mode = 'detailed'
           AND (prize_input_mode = 'by_acquisition' OR guaranteed_prize_count = 0)
           THEN 1 ELSE 0 END), 0) AS complete_report_count
       FROM active_user_reports AS reports
@@ -59,6 +75,7 @@ async function recentPeriodStats(db, storeId, campaignId, startDate, endDate) {
         COALESCE(SUM(mobile_wins), 0) AS total_mobile_wins
       FROM active_user_reports
       WHERE store_id = ? AND campaign_id = ? AND visit_date BETWEEN ? AND ?
+        AND result_input_mode = 'detailed'
       GROUP BY usage_type
     `).bind(...bindings).all(),
     db.prepare(`
@@ -200,11 +217,11 @@ export async function onRequestGet({ request, env, params }) {
     const campaign = await getCampaign(env.DB, url.searchParams.get("campaign"));
     const store = await env.DB.prepare("SELECT * FROM stores WHERE id = ? AND active = 1").bind(params.id).first();
     if (!store) return apiError("店舗が見つかりません。", 404);
-    if (!campaign) return json({ ...mapStore(store), campaign: null, period, periodStart: null, usage: [], prizes: [], itemPrizes: [], guaranteedPrizeCount: 0, guaranteedPrizes: [], national: null }, { headers: cacheHeaders(60) });
+    if (!campaign) return json({ ...mapStore(store), campaign: null, period, periodStart: null, usage: [], prizes: [], itemPrizes: [], guaranteedPrizeCount: 0, guaranteedPrizes: [], simple: mapSimpleSummary(), national: null }, { headers: cacheHeaders(60) });
 
     const today = todayInJapan();
     const periodStart = periodStartDate(today, period);
-    const [result, national, itemPrizes, guaranteedPrizes, guaranteedCount] = await Promise.all([
+    const [result, national, itemPrizes, guaranteedPrizes, guaranteedCount, simple] = await Promise.all([
       period === "7d"
         ? recentPeriodStats(env.DB, store.id, campaign.id, periodStart, today)
         : allPeriodStats(env.DB, store.id, campaign.id),
@@ -212,6 +229,7 @@ export async function onRequestGet({ request, env, params }) {
       itemPrizeStats(env.DB, store.id, campaign.id, periodStart, today),
       guaranteedPrizeStats(env.DB, store.id, campaign.id, periodStart, today),
       guaranteedPrizeCount(env.DB, store.id, campaign.id, periodStart, today),
+      simpleReportStats(env.DB, store.id, campaign.id, periodStart, today),
     ]);
     const completePrizeCount = result.prizes.reduce((sum, prize) => sum + Number(prize.quantity ?? 0), 0);
     const mappedStore = mapStore({ ...store, ...result.totals, complete_report_count: result.completeReports, complete_prize_count: completePrizeCount });
@@ -225,6 +243,7 @@ export async function onRequestGet({ request, env, params }) {
       itemPrizes,
       guaranteedPrizeCount: guaranteedCount,
       guaranteedPrizes,
+      simple: mapSimpleSummary(simple),
       national: { stats: { completeReportCount: national.completeReportCount, completePrizeCount: national.completePrizeCount }, prizes: national.prizes },
     }, { headers: cacheHeaders(period === "7d" ? 30 : 60) });
   } catch (error) { return unavailable(error); }

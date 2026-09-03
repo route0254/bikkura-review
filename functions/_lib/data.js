@@ -56,3 +56,13 @@ export function mapUsageStats(rows = []) {
     };
   });
 }
+
+export function mapSimpleSummary(row = {}) {
+  return {
+    reportCount: Number(row.report_count ?? 0),
+    spendAmountYen: Number(row.spend_amount_yen ?? 0),
+    reportedPrizeCount: Number(row.reported_prize_count ?? 0),
+    reportedDrawCount: Number(row.reported_draw_count ?? 0),
+    drawCountReportCount: Number(row.draw_count_report_count ?? 0),
+  };
+}

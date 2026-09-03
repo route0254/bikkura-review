@@ -14,12 +14,13 @@ export function rebuildStoreCampaignStatements(env, storeId, campaignId, updated
         COALESCE(SUM(panel_wins), 0), COALESCE(SUM(mobile_draws), 0),
         COALESCE(SUM(mobile_wins), 0),
         COALESCE(SUM(CASE
+          WHEN result_input_mode = 'simple' THEN 0
           WHEN prize_input_mode = 'total' THEN panel_wins + mobile_wins
           ELSE unknown_prize_count + COALESCE((
             SELECT SUM(quantity) FROM report_prizes WHERE report_id = active_user_reports.id
           ), 0)
         END), 0),
-        COALESCE(SUM(unknown_prize_count), 0), ?
+        COALESCE(SUM(CASE WHEN result_input_mode = 'detailed' THEN unknown_prize_count ELSE 0 END), 0), ?
       FROM active_user_reports
       WHERE store_id = ? AND campaign_id = ?
       GROUP BY store_id, campaign_id
@@ -33,7 +34,7 @@ export function rebuildStoreCampaignStatements(env, storeId, campaignId, updated
         COALESCE(SUM(panel_draws), 0), COALESCE(SUM(panel_wins), 0),
         COALESCE(SUM(mobile_draws), 0), COALESCE(SUM(mobile_wins), 0), ?
       FROM active_user_reports
-      WHERE store_id = ? AND campaign_id = ?
+      WHERE store_id = ? AND campaign_id = ? AND result_input_mode = 'detailed'
       GROUP BY store_id, campaign_id, usage_type
     `).bind(updatedAt, storeId, campaignId),
     env.DB.prepare(`

@@ -1,4 +1,4 @@
-import { getCampaign, mapCampaign, mapSummary, mapUsageStats } from "../_lib/data.js";
+import { getCampaign, mapCampaign, mapSimpleSummary, mapSummary, mapUsageStats } from "../_lib/data.js";
 import { apiError, cacheHeaders, json, unavailable } from "../_lib/http.js";
 
 export async function onRequestGet({ request, env }) {
@@ -6,7 +6,7 @@ export async function onRequestGet({ request, env }) {
     const url = new URL(request.url);
     const campaign = await getCampaign(env.DB, url.searchParams.get("campaign"));
     if (!campaign) return apiError("キャンペーンが見つかりません。", 404);
-    const [totals, prizes, breakdown, usageRows, storeRows, storePrizeRows, coverage] = await Promise.all([
+    const [totals, simple, prizes, breakdown, usageRows, storeRows, storePrizeRows, coverage] = await Promise.all([
       env.DB.prepare(`
         SELECT
           COALESCE(SUM(report_count), 0) AS report_count,
@@ -14,6 +14,15 @@ export async function onRequestGet({ request, env }) {
           COALESCE(SUM(total_panel_wins + total_mobile_wins), 0) AS total_wins,
           COALESCE(SUM(total_prize_count), 0) AS total_prize_count
         FROM store_campaign_stats WHERE campaign_id = ?
+      `).bind(campaign.id).first(),
+      env.DB.prepare(`
+        SELECT COUNT(*) AS report_count,
+          COALESCE(SUM(spend_amount_yen), 0) AS spend_amount_yen,
+          COALESCE(SUM(reported_prize_count), 0) AS reported_prize_count,
+          COALESCE(SUM(reported_total_draws), 0) AS reported_draw_count,
+          COUNT(reported_total_draws) AS draw_count_report_count
+        FROM active_simple_reports
+        WHERE campaign_id = ?
       `).bind(campaign.id).first(),
       env.DB.prepare(`
         SELECT pc.id, pc.name, COALESCE(SUM(scps.reported_quantity), 0) AS quantity
@@ -104,6 +113,7 @@ export async function onRequestGet({ request, env }) {
     return json({
       campaign: mapCampaign(campaign),
       ...mapSummary({ ...totals, ...breakdown, complete_prize_count: completePrizeCount }),
+      simple: mapSimpleSummary(simple),
       prizes: prizeItems,
       coverage: {
         reportingStoreCount: Number(coverage?.reporting_store_count ?? 0),

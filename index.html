@@ -78,8 +78,9 @@
           <article class="stat-card stat-card-featured"><span>投稿件数</span><strong>—</strong><small>件</small></article>
           <article class="stat-card"><span>総抽選回数</span><strong>—</strong><small>回</small></article>
           <article class="stat-card"><span>総当たり数</span><strong>—</strong><small>回</small></article>
-          <article class="stat-card"><span>景品報告数</span><strong>—</strong><small>個</small></article>
+          <article class="stat-card"><span>抽選景品数</span><strong>—</strong><small>個</small></article>
         </div>
+        <div id="simple-summary" class="simple-summary" hidden></div>
         <div class="prize-summary" id="prize-summary" hidden></div>
         <p id="coverage-summary" class="coverage-summary" aria-live="polite"></p>
       </section>
@@ -199,43 +200,75 @@
           <button class="icon-button" type="button" data-close-report aria-label="投稿フォームを閉じる">×</button>
         </div>
         <form id="report-form" class="report-form" novalidate>
-          <p class="form-intro">自由記述はありません。実際に利用した結果を、分かる範囲で入力してください。</p>
+          <p class="form-intro">覚えている範囲で大丈夫です。入力しやすい方法を選んでください。</p>
           <p id="posting-status" class="posting-status" role="status">匿名投稿は1日5件までです。ログインすると1日20件まで投稿できます。</p>
           <div id="form-errors" class="form-errors" role="alert" tabindex="-1" hidden></div>
-          <div class="form-grid">
-            <label class="field" for="report-prefecture"><span>都道府県 <b>必須</b></span><select id="report-prefecture" required><option value="">選択してください</option></select></label>
-            <label class="field" for="report-store"><span>店舗 <b>必須</b></span><select id="report-store" name="storeId" required disabled><option value="">都道府県を選択してください</option></select></label>
-            <label class="field" for="visit-date"><span>来店日 <b>必須</b></span><input id="visit-date" name="visitDate" type="date" required></label>
-            <label class="field" for="usage-type"><span>利用区分 <b>必須</b></span><select id="usage-type" name="usageType" required><option value="unknown">不明・未選択</option><option value="normal">通常</option><option value="plus">プラス</option></select></label>
-          </div>
-          <fieldset>
-            <legend>タッチパネル</legend>
-            <div class="number-grid">
-              <label class="field" for="panel-draws"><span>抽選回数</span><input id="panel-draws" name="panelDraws" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>
-              <label class="field" for="panel-wins"><span>当たり回数</span><input id="panel-wins" name="panelWins" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>
+          <section class="report-step" aria-labelledby="input-mode-title">
+            <div class="report-step-heading"><span>1</span><div><h3 id="input-mode-title">入力方法を選ぶ</h3><p>迷ったら「かんたん入力」がおすすめです。</p></div></div>
+            <div class="input-mode-options" role="radiogroup" aria-labelledby="input-mode-title">
+              <label class="input-mode-card"><input type="radio" name="resultInputMode" value="simple" checked><span><strong>かんたん入力</strong><small>金額と景品数だけで投稿</small></span></label>
+              <label class="input-mode-card"><input type="radio" name="resultInputMode" value="detailed"><span><strong>詳しく入力</strong><small>抽選方法や当たり数も記録</small></span></label>
             </div>
-          </fieldset>
-          <fieldset>
-            <legend>スマホ注文</legend>
-            <div class="number-grid">
-              <label class="field" for="mobile-draws"><span>抽選回数</span><input id="mobile-draws" name="mobileDraws" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>
-              <label class="field" for="mobile-wins"><span>当たり回数</span><input id="mobile-wins" name="mobileWins" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>
+          </section>
+
+          <section class="report-step" aria-labelledby="visit-info-title">
+            <div class="report-step-heading"><span>2</span><div><h3 id="visit-info-title">店舗と来店日</h3></div></div>
+            <div class="form-grid">
+              <label class="field" for="report-prefecture"><span>都道府県 <b>必須</b></span><select id="report-prefecture" required><option value="">選択してください</option></select></label>
+              <label class="field" for="report-store"><span>店舗 <b>必須</b></span><select id="report-store" name="storeId" required disabled><option value="">都道府県を選択してください</option></select></label>
+              <label class="field field-wide" for="visit-date"><span>来店日 <b>必須</b></span><input id="visit-date" name="visitDate" type="date" required></label>
             </div>
-          </fieldset>
-          <fieldset>
-            <legend>ビッくらポン！確定のセット等</legend>
-            <label class="field" for="guaranteed-prize-count"><span>抽選なしでもらった景品数</span><input id="guaranteed-prize-count" name="guaranteedPrizeCount" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>
-            <p class="section-note section-note-left">確定でもらえるセットや対象商品を利用していなければ0個です。抽選回数・当選率には含めません。</p>
-          </fieldset>
-          <fieldset>
-            <legend>今回もらった景品の合計</legend>
-            <p class="section-note section-note-left">パネル・スマホ注文・確定セット等を分けず、覚えている合計だけ入力してください。</p>
-            <label class="field field-wide breakdown-field" for="prize-breakdown-status"><span>景品の内訳をすべて入力できていますか？ <b>必須</b></span><select id="prize-breakdown-status" name="prizeBreakdownStatus" required><option value="">選択してください</option><option value="complete">すべて入力した</option><option value="partial">一部わからない</option><option value="unknown">内訳は未入力</option></select></label>
-            <div id="prize-fields" class="prize-entry-list"></div>
-            <label class="field" for="unknown-prizes"><span>種類を覚えていない景品</span><input id="unknown-prizes" name="unknownPrizeCount" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>
-          </fieldset>
+          </section>
+
+          <section id="simple-input-section" class="report-step report-mode-section" aria-labelledby="simple-input-title">
+            <div class="report-step-heading"><span>3</span><div><h3 id="simple-input-title">覚えている結果</h3><p>だいたいの金額で構いません。</p></div></div>
+            <div class="simple-input-grid">
+              <label class="field field-emphasis" for="spend-amount"><span>使った金額 <b>必須</b></span><span class="suffix-input"><input id="spend-amount" name="spendAmountYen" type="number" min="1" max="1000000" step="100" inputmode="numeric" placeholder="例：5000" required><small>円</small></span></label>
+              <label class="field" for="reported-total-draws"><span>抽選した回数 <em>任意</em></span><span class="suffix-input"><input id="reported-total-draws" name="reportedTotalDraws" type="number" min="0" max="300" inputmode="numeric" placeholder="覚えていれば"><small>回</small></span></label>
+              <label class="field field-emphasis" for="reported-prize-count"><span>もらった景品の合計 <b>必須</b></span><span class="suffix-input"><input id="reported-prize-count" name="reportedPrizeCount" type="number" min="0" max="300" inputmode="numeric" placeholder="0" required><small>個</small></span></label>
+            </div>
+            <details class="optional-prize-details">
+              <summary>景品の種類も覚えていたら入力（任意）</summary>
+              <p class="section-note section-note-left">分かる種類だけで大丈夫です。合計との差は「種類不明」として保存します。</p>
+              <div id="simple-prize-fields" class="prize-entry-list simple-prize-list"></div>
+            </details>
+            <p class="simple-stat-note">この入力は金額・景品数の集計に使います。当たり数が不明なため、当選率や抽選景品ランキングには含めません。</p>
+          </section>
+
+          <section id="detailed-input-section" class="report-step report-mode-section" aria-labelledby="detailed-input-title" hidden>
+            <div class="report-step-heading"><span>3</span><div><h3 id="detailed-input-title">抽選結果を詳しく入力</h3><p>分かる範囲でパネル・スマホ別に入力してください。</p></div></div>
+            <label class="field" for="usage-type"><span>利用区分 <b>必須</b></span><select id="usage-type" name="usageType" required disabled><option value="unknown">不明・未選択</option><option value="normal">通常</option><option value="plus">プラス</option></select></label>
+            <div class="detailed-draw-grid">
+              <fieldset>
+                <legend>タッチパネル</legend>
+                <div class="number-grid">
+                  <label class="field" for="panel-draws"><span>抽選</span><span class="suffix-input"><input id="panel-draws" name="panelDraws" type="number" min="0" max="300" inputmode="numeric" value="0" required disabled><small>回</small></span></label>
+                  <label class="field" for="panel-wins"><span>当たり</span><span class="suffix-input"><input id="panel-wins" name="panelWins" type="number" min="0" max="300" inputmode="numeric" value="0" required disabled><small>回</small></span></label>
+                </div>
+              </fieldset>
+              <fieldset>
+                <legend>スマホ注文</legend>
+                <div class="number-grid">
+                  <label class="field" for="mobile-draws"><span>抽選</span><span class="suffix-input"><input id="mobile-draws" name="mobileDraws" type="number" min="0" max="300" inputmode="numeric" value="0" required disabled><small>回</small></span></label>
+                  <label class="field" for="mobile-wins"><span>当たり</span><span class="suffix-input"><input id="mobile-wins" name="mobileWins" type="number" min="0" max="300" inputmode="numeric" value="0" required disabled><small>回</small></span></label>
+                </div>
+              </fieldset>
+            </div>
+            <fieldset>
+              <legend>抽選なしでもらった景品</legend>
+              <label class="field" for="guaranteed-prize-count"><span>確定セット・対象商品など</span><span class="suffix-input"><input id="guaranteed-prize-count" name="guaranteedPrizeCount" type="number" min="0" max="300" inputmode="numeric" value="0" required disabled><small>個</small></span></label>
+              <p class="section-note section-note-left">利用していなければ0個です。当選率には含めません。</p>
+            </fieldset>
+            <fieldset>
+              <legend>今回もらった景品の合計</legend>
+              <p class="section-note section-note-left">パネル・スマホ・確定セット等を分けず、覚えている合計を入力してください。</p>
+              <label class="field field-wide breakdown-field" for="prize-breakdown-status"><span>景品の内訳をどこまで入力できますか？ <b>必須</b></span><select id="prize-breakdown-status" name="prizeBreakdownStatus" required disabled><option value="">選択してください</option><option value="complete">すべて分かる</option><option value="partial">一部だけ分かる</option><option value="unknown">内訳は分からない</option></select></label>
+              <div id="prize-fields" class="prize-entry-list"></div>
+              <label class="field" for="unknown-prizes"><span>種類を覚えていない景品</span><span class="suffix-input"><input id="unknown-prizes" name="unknownPrizeCount" type="number" min="0" max="300" inputmode="numeric" value="0" required disabled><small>個</small></span></label>
+            </fieldset>
+          </section>
           <input id="report-campaign" name="campaignId" type="hidden">
-          <div id="turnstile-container" class="turnstile-container" aria-label="投稿確認"></div>
+          <div id="turnstile-container" class="turnstile-container" role="group" aria-label="投稿確認"></div>
           <p id="turnstile-status" class="turnstile-note" role="status">投稿確認を準備しています。</p>
           <div class="form-actions"><button class="button button-secondary" type="button" data-close-report>キャンセル</button><button class="button button-primary" type="submit">この内容で投稿</button></div>
           <p id="form-status" class="form-status" role="status" aria-live="polite"></p>

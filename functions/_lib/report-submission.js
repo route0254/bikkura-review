@@ -1,6 +1,6 @@
 import { createReportFingerprint } from "../../lib/duplicate.js";
 import { postingDecision } from "../../lib/posting.js";
-import { acquisitionTypeOf, prizeInputModeOf } from "../../lib/report-policy.js";
+import { acquisitionTypeOf, prizeInputModeOf, resultInputModeOf } from "../../lib/report-policy.js";
 import { assessReportRisk } from "../../lib/risk.js";
 import { REPORT_LIMITS, todayInJapan, validateReportPayload } from "../../lib/validation.js";
 import { optionalFirebaseUser } from "./firebase-auth.js";
@@ -25,7 +25,9 @@ function activeAggregateStatements(env, payload, createdAt, totalPrizeCount) {
         total_unknown_prizes = total_unknown_prizes + excluded.total_unknown_prizes,
         updated_at = excluded.updated_at
     `).bind(payload.storeId, payload.campaignId, payload.panelDraws, payload.panelWins, payload.mobileDraws, payload.mobileWins, totalPrizeCount, payload.unknownPrizeCount, createdAt),
-    env.DB.prepare(`
+  ];
+  if (resultInputModeOf(payload) === "detailed") {
+    statements.push(env.DB.prepare(`
       INSERT INTO store_campaign_usage_stats (store_id, campaign_id, usage_type, report_count, total_panel_draws, total_panel_wins, total_mobile_draws, total_mobile_wins, updated_at)
       VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)
       ON CONFLICT(store_id, campaign_id, usage_type) DO UPDATE SET
@@ -35,10 +37,11 @@ function activeAggregateStatements(env, payload, createdAt, totalPrizeCount) {
         total_mobile_draws = total_mobile_draws + excluded.total_mobile_draws,
         total_mobile_wins = total_mobile_wins + excluded.total_mobile_wins,
         updated_at = excluded.updated_at
-    `).bind(payload.storeId, payload.campaignId, payload.usageType, payload.panelDraws, payload.panelWins, payload.mobileDraws, payload.mobileWins, createdAt),
-  ];
+    `).bind(payload.storeId, payload.campaignId, payload.usageType, payload.panelDraws, payload.panelWins, payload.mobileDraws, payload.mobileWins, createdAt));
+  }
   const prizeInputMode = prizeInputModeOf(payload);
-  const canAggregateCategories = payload.prizeBreakdownStatus === "complete"
+  const canAggregateCategories = resultInputModeOf(payload) === "detailed"
+    && payload.prizeBreakdownStatus === "complete"
     && (prizeInputMode === "by_acquisition" || payload.guaranteedPrizeCount === 0);
   if (canAggregateCategories) {
     for (const prize of payload.prizes.filter((item) => item.quantity > 0 && (prizeInputMode === "total" || acquisitionTypeOf(item) === "draw"))) {
@@ -56,15 +59,18 @@ function activeAggregateStatements(env, payload, createdAt, totalPrizeCount) {
 
 function reportInsertStatements({ env, payload, identity, risk, reportId, createdAt, nowSeconds, fingerprint, slot }) {
   const prizeInputMode = prizeInputModeOf(payload);
+  const resultInputMode = resultInputModeOf(payload);
   const legacyGuaranteedCount = payload.prizes
     .filter((prize) => acquisitionTypeOf(prize) === "guaranteed")
     .reduce((sum, prize) => sum + prize.quantity, 0);
   const guaranteedPrizeCount = prizeInputMode === "total"
     ? payload.guaranteedPrizeCount ?? 0
     : legacyGuaranteedCount;
-  const totalPrizeCount = prizeInputMode === "total"
-    ? payload.panelWins + payload.mobileWins
-    : payload.prizes.filter((prize) => acquisitionTypeOf(prize) === "draw").reduce((sum, prize) => sum + prize.quantity, payload.unknownPrizeCount);
+  const totalPrizeCount = resultInputMode === "simple"
+    ? 0
+    : prizeInputMode === "total"
+      ? payload.panelWins + payload.mobileWins
+      : payload.prizes.filter((prize) => acquisitionTypeOf(prize) === "draw").reduce((sum, prize) => sum + prize.quantity, payload.unknownPrizeCount);
   const statements = [];
   if (identity.userId) {
     statements.push(env.DB.prepare(`
@@ -78,14 +84,16 @@ function reportInsertStatements({ env, payload, identity, risk, reportId, create
       id, source_type, store_id, campaign_id, visit_date, usage_type, panel_draws, panel_wins,
       mobile_draws, mobile_wins, unknown_prize_count, status, created_at,
       prize_breakdown_status, user_id, daily_rate_hash, abuse_hash, risk_score, risk_reasons,
-      guaranteed_prize_count, prize_input_mode
-    ) VALUES (?, 'user', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      guaranteed_prize_count, prize_input_mode, result_input_mode, spend_amount_yen,
+      reported_total_draws, reported_prize_count
+    ) VALUES (?, 'user', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     reportId, payload.storeId, payload.campaignId, payload.visitDate, payload.usageType,
     payload.panelDraws, payload.panelWins, payload.mobileDraws, payload.mobileWins,
     payload.unknownPrizeCount, risk.status, createdAt, payload.prizeBreakdownStatus,
     identity.userId, identity.dailyRateHash, identity.abuseHash, risk.score, JSON.stringify(risk.reasons),
-    guaranteedPrizeCount, prizeInputMode,
+    guaranteedPrizeCount, prizeInputMode, resultInputMode, payload.spendAmountYen ?? null,
+    payload.reportedTotalDraws ?? null, payload.reportedPrizeCount ?? null,
   ));
   for (const prize of payload.prizes.filter((item) => item.quantity > 0)) {
     const acquisitionType = acquisitionTypeOf(prize);
