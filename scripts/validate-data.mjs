@@ -31,6 +31,11 @@ for (const campaign of campaigns) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(campaign.startsOn) || !/^\d{4}-\d{2}-\d{2}$/.test(campaign.endsOn) || campaign.endsOn < campaign.startsOn) errors.push(`${campaign.id}: 開催期間が不正です`);
   if (!campaign.prizeCategories?.length) errors.push(`${campaign.id}: 景品カテゴリがありません`);
   const categoryIds = new Set(campaign.prizeCategories?.map((category) => category.id) ?? []);
+  for (const category of campaign.prizeCategories ?? []) {
+    if (!Number.isInteger(category.expectedItemCount) || category.expectedItemCount < 0) errors.push(`${category.id}: expectedItemCount は0以上の整数にしてください`);
+    const actual = (campaign.prizeItems ?? []).filter((item) => item.prizeCategoryId === category.id).length;
+    if (Number.isInteger(category.expectedItemCount) && actual !== category.expectedItemCount) errors.push(`${category.id}: 個別景品は${category.expectedItemCount}種の予定ですが${actual}種です`);
+  }
   for (const item of campaign.prizeItems ?? []) {
     if (!categoryIds.has(item.prizeCategoryId)) errors.push(`${item.id}: 同じキャンペーンの景品カテゴリに属していません`);
     if (!item.name || typeof item.name !== "string") errors.push(`${item.id}: name がありません`);

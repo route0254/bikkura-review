@@ -21,7 +21,8 @@ export async function onRequestGet({ request, env }) {
     const where = conditions.join(" AND ");
     const rows = (await env.DB.prepare(`
       SELECT s.*, scs.report_count, scs.total_panel_draws, scs.total_panel_wins,
-        scs.total_mobile_draws, scs.total_mobile_wins, scs.total_prize_count
+        scs.total_mobile_draws, scs.total_mobile_wins, scs.total_prize_count,
+        scs.updated_at AS latest_report_at
       FROM stores s
       LEFT JOIN store_campaign_stats scs ON scs.store_id = s.id AND scs.campaign_id = ?
       WHERE ${where}

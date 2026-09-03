@@ -22,7 +22,7 @@
     ],
     "items": [],
     "noteInternal": "景品総数とフィギュア0個を確認。その他カテゴリの内訳は不明。",
-    "status": "active"
+    "status": "pending"
   },
   {
     "id": "external-20260823-makuhari-x",
@@ -47,7 +47,7 @@
     ],
     "items": [],
     "noteInternal": "景品総数とフィギュア数を確認。その他カテゴリの内訳は不明。",
-    "status": "active"
+    "status": "pending"
   },
   {
     "id": "external-20260821-namba-sennichimae-x",
@@ -83,7 +83,7 @@
       { "prizeCategoryId": "chiikawa-2026-acrylic-magnet", "prizeItemId": "chiikawa-2026-acrylic-magnet-shisa", "quantity": 1, "quantityKind": "exact" }
     ],
     "noteInternal": "景品総数、全カテゴリ数、記載された個別景品数が一致。",
-    "status": "active"
+    "status": "pending"
   },
   {
     "id": "external-before-20260903-koiwa-x",
@@ -108,7 +108,7 @@
     ],
     "items": [],
     "noteInternal": "候補記載の小岩店を現行店舗マスタの小岩駅前店へ紐付け。来店日は確認できず。景品総数とフィギュア0個を確認。",
-    "status": "active"
+    "status": "pending"
   },
   {
     "id": "external-20260821-kitamoto-tabelog-1",
@@ -133,7 +133,7 @@
     ],
     "items": [],
     "noteInternal": "プラス利用とフィギュア1個を確認。景品総数は不明。",
-    "status": "active"
+    "status": "pending"
   },
   {
     "id": "external-around-20260823-kitamoto-tabelog-2",
@@ -158,7 +158,7 @@
     ],
     "items": [],
     "noteInternal": "景品があったこととフィギュア0個を確認。景品総数と正確な来店日は不明。",
-    "status": "active"
+    "status": "pending"
   },
   {
     "id": "external-202608-ikebukuro-west-tabelog",
@@ -183,7 +183,7 @@
     ],
     "items": [],
     "noteInternal": "ビッくらポン挑戦4回の記載あり。抽選経路・当たり数は推定せず、フィギュア1個以上のみ採用。",
-    "status": "active"
+    "status": "pending"
   },
   {
     "id": "external-202608-iruma-tabelog",
@@ -210,7 +210,7 @@
       { "prizeCategoryId": "chiikawa-2026-figure", "prizeItemId": "chiikawa-2026-figure-chiikawa", "quantity": 1, "quantityKind": "at_least" }
     ],
     "noteInternal": "カプセル付きメニュー由来の可能性あり。通常抽選とは断定しない。",
-    "status": "active"
+    "status": "pending"
   },
   {
     "id": "external-before-20260831-sakura-shukugawa-x",
@@ -235,6 +235,6 @@
     ],
     "items": [],
     "noteInternal": "利用金額約15,000円の記載あり。景品数は推定せず、フィギュア0個のみ採用。",
-    "status": "active"
+    "status": "pending"
   }
 ]

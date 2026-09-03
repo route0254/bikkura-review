@@ -20,6 +20,7 @@ export function mapStore(row) {
     longitude: row.longitude,
     officialUrl: row.official_url,
     active: Boolean(row.active),
+    latestReportAt: row.latest_report_at ?? null,
     stats: mapSummary(row),
   };
 }

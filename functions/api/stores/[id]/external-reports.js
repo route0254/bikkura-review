@@ -20,7 +20,8 @@ export async function onRequestGet({ request, env, params }) {
         panel_draws, panel_wins, mobile_draws, mobile_wins,
         total_prizes, total_prizes_kind
       FROM external_reports
-      WHERE store_id = ? AND campaign_id = ? AND source_type = 'external' AND status = 'active'
+      WHERE store_id = ? AND campaign_id = ? AND source_type = 'external'
+        AND status = 'active' AND external_url IS NOT NULL
       ORDER BY COALESCE(visit_date, external_observed_at) DESC, created_at DESC, id DESC
       LIMIT ?
     `).bind(params.id, campaign.id, limit).all()).results;
@@ -33,7 +34,7 @@ export async function onRequestGet({ request, env, params }) {
       [prizes, prizeItems] = await Promise.all([
         env.DB.prepare(`
           SELECT external.external_report_id, category.id, category.name,
-            external.quantity, external.quantity_kind
+            external.quantity, external.quantity_kind, external.acquisition_type
           FROM external_report_prizes external
           JOIN prize_categories category ON category.id = external.prize_category_id
           WHERE external.external_report_id IN (${placeholders})
@@ -42,7 +43,7 @@ export async function onRequestGet({ request, env, params }) {
         env.DB.prepare(`
           SELECT external.external_report_id, external.prize_category_id,
             category.name AS category_name, item.id, item.name,
-            external.quantity, external.quantity_kind
+            external.quantity, external.quantity_kind, external.acquisition_type
           FROM external_report_items external
           JOIN prize_items item ON item.id = external.prize_item_id
           JOIN prize_categories category ON category.id = external.prize_category_id
@@ -76,6 +77,7 @@ export async function onRequestGet({ request, env, params }) {
           name: prize.name,
           quantity: nullableNumber(prize.quantity),
           quantityKind: prize.quantity_kind,
+          acquisitionType: prize.acquisition_type,
         })),
         items: prizeItems.filter((item) => item.external_report_id === report.id).map((item) => ({
           id: item.id,
@@ -84,6 +86,7 @@ export async function onRequestGet({ request, env, params }) {
           prizeCategoryName: item.category_name,
           quantity: Number(item.quantity),
           quantityKind: item.quantity_kind,
+          acquisitionType: item.acquisition_type,
         })),
       })),
     }, { headers: cacheHeaders(60) });

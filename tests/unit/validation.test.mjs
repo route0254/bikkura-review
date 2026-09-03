@@ -103,3 +103,22 @@ test("completeとpartialの個別景品合計ルールを検証する", () => {
   assert.ok(incomplete.some((error) => error.includes("カテゴリ個数と一致")));
   assert.ok(falselyPartial.some((error) => error.includes("すべて入力した状態")));
 });
+
+test("抽選景品と確約景品を分離し、確約景品は当たり数との一致判定に含めない", () => {
+  const payload = {
+    ...valid,
+    prizes: [
+      { acquisitionType: "draw", prizeCategoryId: "prize-1", quantity: 4 },
+      { acquisitionType: "draw", prizeCategoryId: "prize-2", quantity: 3 },
+      { acquisitionType: "guaranteed", prizeCategoryId: "prize-1", quantity: 20 },
+    ],
+  };
+  assert.deepEqual(validateReportPayload(payload, context), []);
+  const invalid = validateReportPayload({ ...payload, prizes: [{ acquisitionType: "unknown", prizeCategoryId: "prize-1", quantity: 1 }] }, context);
+  assert.ok(invalid.some((error) => error.includes("取得経路")));
+});
+
+test("終了済みキャンペーンへの新規投稿を拒否する", () => {
+  const errors = validateReportPayload(valid, { ...context, today: "2026-10-01" });
+  assert.ok(errors.some((error) => error.includes("終了したキャンペーン")));
+});

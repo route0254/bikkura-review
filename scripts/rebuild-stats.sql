@@ -19,7 +19,7 @@ SELECT
   datetime('now')
 FROM stores
 CROSS JOIN campaigns
-LEFT JOIN reports ON reports.store_id = stores.id AND reports.campaign_id = campaigns.id AND reports.status = 'active'
+LEFT JOIN active_user_reports reports ON reports.store_id = stores.id AND reports.campaign_id = campaigns.id
 GROUP BY stores.id, campaigns.id;
 
 INSERT INTO store_campaign_usage_stats (
@@ -36,15 +36,14 @@ SELECT
   SUM(reports.mobile_draws),
   SUM(reports.mobile_wins),
   datetime('now')
-FROM reports
-WHERE reports.status = 'active'
+FROM active_user_reports reports
 GROUP BY reports.store_id, reports.campaign_id, reports.usage_type;
 
 INSERT INTO store_campaign_prize_stats (store_id, campaign_id, prize_category_id, reported_quantity, updated_at)
 SELECT reports.store_id, reports.campaign_id, report_prizes.prize_category_id, SUM(report_prizes.quantity), datetime('now')
-FROM reports
+FROM active_user_reports reports
 JOIN report_prizes ON report_prizes.report_id = reports.id
-WHERE reports.status = 'active' AND reports.prize_breakdown_status = 'complete'
+WHERE reports.prize_breakdown_status = 'complete'
 GROUP BY reports.store_id, reports.campaign_id, report_prizes.prize_category_id;
 
 PRAGMA optimize;

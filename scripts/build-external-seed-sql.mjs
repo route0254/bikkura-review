@@ -30,10 +30,10 @@ for (const report of reports) {
   sql.push(`DELETE FROM external_report_items WHERE external_report_id = ${quote(report.id)};`);
   sql.push(`DELETE FROM external_report_prizes WHERE external_report_id = ${quote(report.id)};`);
   for (const prize of report.prizes) {
-    sql.push(`INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind) VALUES (${quote(report.id)}, ${quote(prize.prizeCategoryId)}, ${prize.quantity ?? "NULL"}, ${quote(prize.quantityKind)});`);
+    sql.push(`INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES (${quote(report.id)}, ${quote(prize.prizeCategoryId)}, ${prize.quantity ?? "NULL"}, ${quote(prize.quantityKind)}, ${quote(prize.acquisitionType ?? "unknown")});`);
   }
   for (const item of report.items) {
-    sql.push(`INSERT INTO external_report_items (external_report_id, prize_category_id, prize_item_id, quantity, quantity_kind) VALUES (${quote(report.id)}, ${quote(item.prizeCategoryId)}, ${quote(item.prizeItemId)}, ${item.quantity}, ${quote(item.quantityKind)});`);
+    sql.push(`INSERT INTO external_report_items (external_report_id, prize_category_id, prize_item_id, quantity, quantity_kind, acquisition_type) VALUES (${quote(report.id)}, ${quote(item.prizeCategoryId)}, ${quote(item.prizeItemId)}, ${item.quantity}, ${quote(item.quantityKind)}, ${quote(item.acquisitionType ?? "unknown")});`);
   }
   sql.push("");
 }

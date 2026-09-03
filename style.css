@@ -103,7 +103,12 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
 
 .store-heading { margin-bottom: 12px; }
 .result-count { color: var(--muted); font-size: .86rem; }
-.search-panel { display: grid; grid-template-columns: minmax(0, 2fr) minmax(210px, .8fr); gap: 12px; padding: 15px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); box-shadow: 0 7px 20px rgba(68,49,61,.045); }
+.search-panel { display: grid; grid-template-columns: minmax(0, 2fr) minmax(170px, .8fr) minmax(160px, .7fr) auto; gap: 12px; padding: 15px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); box-shadow: 0 7px 20px rgba(68,49,61,.045); }
+.location-control { display: grid; align-content: end; gap: 6px; }
+.location-control > span { color: var(--muted); font-size: .73rem; font-weight: 700; }
+.location-control small { max-width: 180px; color: var(--muted); font-size: .66rem; }
+.coverage-summary { margin: 12px 0 0; color: var(--muted); font-size: .78rem; }
+.campaign-archive-note { margin: 9px 0 0; color: var(--danger); font-size: .78rem; font-weight: 700; }
 .field { display: grid; align-content: start; gap: 6px; min-width: 0; color: #585157; font-size: .82rem; font-weight: 700; }
 .field b { color: var(--pink-strong); font-size: .7rem; }
 .input-wrap { position: relative; display: block; }
@@ -218,6 +223,7 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
 .breakdown-field { margin-bottom: 14px; }
 .number-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .prize-entry-list { display: grid; gap: 10px; }
+.prize-entry-list[hidden] { display: none; }
 .prize-entry { padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-soft); }
 .quantity-input { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 7px; }
 .quantity-input small { color: var(--muted); }
@@ -239,6 +245,25 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
 .ranking-store { display: grid; }
 .ranking-store small, .ranking-rate small { color: var(--muted); font-size: .7rem; font-weight: 500; }
 .ranking-rate { display: grid; color: var(--lavender); font-size: 1.05rem; font-weight: 900; text-align: right; font-variant-numeric: tabular-nums; }
+.prefecture-stats-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.prefecture-stats-list article { padding: 15px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+.prefecture-stats-list h3 { margin: 0 0 9px; font-size: .95rem; }
+.prefecture-stats-list dl { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin: 0; }
+.prefecture-stats-list dl div { display: flex; justify-content: space-between; gap: 5px; font-size: .75rem; }
+.prefecture-stats-list dt { color: var(--muted); }
+.prefecture-stats-list dd { margin: 0; font-weight: 800; }
+.recent-national-section { margin-top: 34px; }
+.recent-national-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+.recent-national-card { display: grid; gap: 3px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); color: var(--text); text-align: left; }
+.recent-national-card span, .recent-national-card small { color: var(--muted); font-size: .75rem; }
+.guaranteed-toggle { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-weight: 800; }
+.my-reports-list { display: grid; gap: 10px; }
+.my-report-card { padding: 15px; border: 1px solid var(--line); border-radius: var(--radius-md); }
+.my-report-card header { display: flex; justify-content: space-between; gap: 12px; }
+.my-report-card header div { display: grid; gap: 2px; }
+.my-report-card time, .my-report-card header > span { color: var(--muted); font-size: .72rem; }
+.my-report-card p { margin: 7px 0 0; font-size: .8rem; }
+.my-report-card footer { margin-top: 12px; }
 
 .privacy-shell { max-width: 850px; }
 .privacy-card { padding: clamp(22px, 5vw, 48px); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }
@@ -253,6 +278,8 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
   .auth-controls > span { display: none; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .store-grid { grid-template-columns: repeat(2, 1fr); }
+  .search-panel { grid-template-columns: 1fr 1fr; }
+  .prefecture-stats-list { grid-template-columns: repeat(2, 1fr); }
   .footer-inner { grid-template-columns: 1fr; gap: 10px; padding-block: 24px; }
   .footer-note { text-align: left; }
 }
@@ -267,7 +294,7 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
   .mobile-break { display: block; }
   .header-actions .button { min-height: 40px; padding: 8px 11px; font-size: .78rem; }
   .page-shell { padding-block: 18px 40px; }
-  .result-view-tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .result-view-tabs { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; }
   .result-view-tabs button { padding-inline: 8px; font-size: .82rem; }
   .campaign-bar { display: block; padding: 18px; border-radius: 17px; }
   .campaign-select-label { margin-top: 15px; }
@@ -278,6 +305,7 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
   .stat-card { min-height: 104px; padding: 15px; }
   .stat-card::after { left: 15px; right: 15px; }
   .search-panel { grid-template-columns: 1fr; padding: 12px; }
+  .prefecture-stats-list, .recent-national-list { grid-template-columns: 1fr; }
   .store-heading { display: flex; align-items: end; }
   .store-grid { grid-template-columns: 1fr; gap: 9px; }
   .store-card { min-height: 0; }

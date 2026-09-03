@@ -1,5 +1,6 @@
 import { createReportFingerprint } from "../../lib/duplicate.js";
 import { postingDecision } from "../../lib/posting.js";
+import { acquisitionTypeOf } from "../../lib/report-policy.js";
 import { assessReportRisk } from "../../lib/risk.js";
 import { REPORT_LIMITS, todayInJapan, validateReportPayload } from "../../lib/validation.js";
 import { optionalFirebaseUser } from "./firebase-auth.js";
@@ -37,7 +38,7 @@ function activeAggregateStatements(env, payload, createdAt, totalPrizeCount) {
     `).bind(payload.storeId, payload.campaignId, payload.usageType, payload.panelDraws, payload.panelWins, payload.mobileDraws, payload.mobileWins, createdAt),
   ];
   if (payload.prizeBreakdownStatus === "complete") {
-    for (const prize of payload.prizes.filter((item) => item.quantity > 0)) {
+    for (const prize of payload.prizes.filter((item) => item.quantity > 0 && acquisitionTypeOf(item) === "draw")) {
       statements.push(env.DB.prepare(`
         INSERT INTO store_campaign_prize_stats (store_id, campaign_id, prize_category_id, reported_quantity, updated_at)
         VALUES (?, ?, ?, ?, ?)
@@ -51,7 +52,7 @@ function activeAggregateStatements(env, payload, createdAt, totalPrizeCount) {
 }
 
 function reportInsertStatements({ env, payload, identity, risk, reportId, createdAt, nowSeconds, fingerprint, slot }) {
-  const totalPrizeCount = payload.prizes.reduce((sum, prize) => sum + prize.quantity, payload.unknownPrizeCount);
+  const totalPrizeCount = payload.prizes.filter((prize) => acquisitionTypeOf(prize) === "draw").reduce((sum, prize) => sum + prize.quantity, payload.unknownPrizeCount);
   const statements = [];
   if (identity.userId) {
     statements.push(env.DB.prepare(`
@@ -62,10 +63,10 @@ function reportInsertStatements({ env, payload, identity, risk, reportId, create
   }
   statements.push(env.DB.prepare(`
     INSERT INTO reports (
-      id, store_id, campaign_id, visit_date, usage_type, panel_draws, panel_wins,
+      id, source_type, store_id, campaign_id, visit_date, usage_type, panel_draws, panel_wins,
       mobile_draws, mobile_wins, unknown_prize_count, status, created_at,
       prize_breakdown_status, user_id, daily_rate_hash, abuse_hash, risk_score, risk_reasons
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, 'user', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     reportId, payload.storeId, payload.campaignId, payload.visitDate, payload.usageType,
     payload.panelDraws, payload.panelWins, payload.mobileDraws, payload.mobileWins,
@@ -73,19 +74,21 @@ function reportInsertStatements({ env, payload, identity, risk, reportId, create
     identity.userId, identity.dailyRateHash, identity.abuseHash, risk.score, JSON.stringify(risk.reasons),
   ));
   for (const prize of payload.prizes.filter((item) => item.quantity > 0)) {
-    statements.push(env.DB.prepare("INSERT INTO report_prizes (report_id, prize_category_id, quantity) VALUES (?, ?, ?)").bind(reportId, prize.prizeCategoryId, prize.quantity));
+    const acquisitionType = acquisitionTypeOf(prize);
+    statements.push(acquisitionType === "draw"
+      ? env.DB.prepare("INSERT INTO report_prizes (report_id, prize_category_id, quantity) VALUES (?, ?, ?)").bind(reportId, prize.prizeCategoryId, prize.quantity)
+      : env.DB.prepare("INSERT INTO report_guaranteed_prizes (report_id, prize_category_id, quantity) VALUES (?, ?, ?)").bind(reportId, prize.prizeCategoryId, prize.quantity));
   }
   for (const breakdown of payload.itemBreakdowns ?? []) {
     if (breakdown.status === "unknown") continue;
-    statements.push(env.DB.prepare(`
-      INSERT INTO report_prize_item_breakdowns (report_id, prize_category_id, status)
-      VALUES (?, ?, ?)
-    `).bind(reportId, breakdown.prizeCategoryId, breakdown.status));
+    const acquisitionType = acquisitionTypeOf(breakdown);
+    statements.push(acquisitionType === "draw"
+      ? env.DB.prepare("INSERT INTO report_prize_item_breakdowns (report_id, prize_category_id, status) VALUES (?, ?, ?)").bind(reportId, breakdown.prizeCategoryId, breakdown.status)
+      : env.DB.prepare("INSERT INTO report_guaranteed_item_breakdowns (report_id, prize_category_id, status) VALUES (?, ?, ?)").bind(reportId, breakdown.prizeCategoryId, breakdown.status));
     for (const item of breakdown.items.filter((entry) => entry.quantity > 0)) {
-      statements.push(env.DB.prepare(`
-        INSERT INTO report_prize_items (report_id, prize_category_id, prize_item_id, quantity)
-        VALUES (?, ?, ?, ?)
-      `).bind(reportId, breakdown.prizeCategoryId, item.prizeItemId, item.quantity));
+      statements.push(acquisitionType === "draw"
+        ? env.DB.prepare("INSERT INTO report_prize_items (report_id, prize_category_id, prize_item_id, quantity) VALUES (?, ?, ?, ?)").bind(reportId, breakdown.prizeCategoryId, item.prizeItemId, item.quantity)
+        : env.DB.prepare("INSERT INTO report_guaranteed_items (report_id, prize_category_id, prize_item_id, quantity) VALUES (?, ?, ?, ?)").bind(reportId, breakdown.prizeCategoryId, item.prizeItemId, item.quantity));
     }
   }
   statements.push(

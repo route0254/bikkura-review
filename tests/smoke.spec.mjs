@@ -1,8 +1,20 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
+const runtimeErrors = new WeakMap();
+
 test.beforeEach(async ({ page }) => {
-  await page.route("https://challenges.cloudflare.com/**", (route) => route.abort());
+  const errors = [];
+  runtimeErrors.set(page, errors);
+  page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
+  page.on("console", (message) => {
+    if (message.type() === "error" && !message.text().startsWith("Failed to load resource:")) errors.push(`console.error: ${message.text()}`);
+  });
+  await page.route("https://challenges.cloudflare.com/**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/javascript",
+    body: "window.turnstile={render(){return 1},reset(){}};",
+  }));
   await page.addInitScript(() => {
     window.__BIKKURA_AUTH_MOCK__ = {
       enabled: true,
@@ -11,6 +23,10 @@ test.beforeEach(async ({ page }) => {
       async signIn() { return { uid: "mock-user" }; },
     };
   });
+});
+
+test.afterEach(async ({ page }) => {
+  expect(runtimeErrors.get(page) ?? []).toEqual([]);
 });
 
 test("トップページを表示し、店舗を検索・絞り込みできる", async ({ page }) => {
@@ -47,7 +63,7 @@ test("全国店舗を段階表示し、一覧の全店舗を検索できる", as
   });
   await page.goto("/");
   await expect(page.locator("#store-count")).toHaveText("60 / 552店舗を表示");
-  expect(functionRequests.sort()).toEqual(["/api/campaigns", "/api/posting-status", "/api/stats"]);
+  expect(functionRequests.sort()).toEqual(["/api/campaigns", "/api/posting-status", "/api/recent-reports", "/api/stats"]);
   expect(storeMasterRequests).toBe(1);
   expect(functionRequests).not.toContain("/api/stores");
   await expect(page.locator(".store-card")).toHaveCount(60);
@@ -81,8 +97,8 @@ test("不正な回数は投稿前にエラーになる", async ({ page }) => {
   await page.getByLabel("都道府県 必須").selectOption("東京都");
   await page.getByLabel("店舗 必須").selectOption("kura-664");
   await page.getByLabel("景品の内訳をすべて入力できていますか？ 必須").selectOption("partial");
-  await page.getByLabel("抽選回数").first().fill("1");
-  await page.getByLabel("当たり回数").first().fill("2");
+  await page.locator("#panel-draws").fill("1");
+  await page.locator("#panel-wins").fill("2");
   await page.getByRole("button", { name: "この内容で投稿" }).click();
   await expect(page.getByRole("alert")).toContainText("抽選回数以下");
 });
@@ -97,18 +113,18 @@ test("投稿フォームで都道府県から店舗を絞り込み、個別景�
   await expect(storeSelect.locator('option[value="kura-664"]')).toHaveText("新宿靖国通り店");
   await expect(storeSelect.locator('option[value="kura-547"]')).toHaveCount(0);
 
-  await page.getByRole("spinbutton", { name: /^フィギュア/ }).fill("2");
-  const toggle = page.locator('[data-item-toggle="chiikawa-2026-figure"]');
+  await page.locator("#prize-draw\\:chiikawa-2026-figure").fill("2");
+  const toggle = page.locator('[data-item-toggle="draw:chiikawa-2026-figure"]');
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
-  await page.locator("#item-chiikawa-2026-figure-chiikawa").fill("1");
-  await expect(page.locator('[data-item-status="chiikawa-2026-figure"]')).toContainText("一部入力");
-  await page.locator("#item-chiikawa-2026-figure-hachiware").fill("1");
-  await expect(page.locator('[data-item-status="chiikawa-2026-figure"]')).toContainText("すべて入力");
+  await page.locator("#item-draw-chiikawa-2026-figure-chiikawa").fill("1");
+  await expect(page.locator('[data-item-status="draw:chiikawa-2026-figure"]')).toContainText("一部入力");
+  await page.locator("#item-draw-chiikawa-2026-figure-hachiware").fill("1");
+  await expect(page.locator('[data-item-status="draw:chiikawa-2026-figure"]')).toContainText("すべて入力");
 });
 
 test("店舗詳細でカテゴリ割合・全国比較・個別景品割合とデータ不足を表示する", async ({ page }) => {
-  await page.route("**/api/stores/kura-664?period=all", (route) => route.fulfill({
+  await page.route("**/api/stores/kura-664?period=all*", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
     body: JSON.stringify({
@@ -123,7 +139,7 @@ test("店舗詳細でカテゴリ割合・全国比較・個別景品割合と�
   await page.goto("/");
   await page.getByLabel("店舗名・地名").fill("新宿靖国通り");
   await page.locator('[data-store-id="kura-664"]').click();
-  await expect(page.getByRole("heading", { name: "景品カテゴリ" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "抽選で当たった景品カテゴリ" })).toBeVisible();
   await expect(page.locator("#detail-prizes")).toContainText("40.0%");
   await expect(page.locator("#detail-prizes")).toContainText("+10.0pt");
   const itemToggle = page.getByRole("button", { name: /フィギュア内訳/ });
@@ -134,7 +150,7 @@ test("店舗詳細でカテゴリ割合・全国比較・個別景品割合と�
 });
 
 test("店舗詳細で通常投稿と外部参考情報を分離し、0・不明・partial・出典を表示する", async ({ page }) => {
-  await page.route("**/api/stores/kura-664/external-reports?limit=10", (route) => route.fulfill({
+  await page.route("**/api/stores/kura-664/external-reports**", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
     body: JSON.stringify({ items: [
@@ -146,7 +162,7 @@ test("店舗詳細で通常投稿と外部参考情報を分離し、0・不明�
       },
       {
         id: "external-tabelog", sourceType: "external", visitDate: null, visitDateLabel: "2026年8月23日頃",
-        externalPlatform: "tabelog", externalPlatformLabel: "食べログ", externalUrl: null,
+        externalPlatform: "tabelog", externalPlatformLabel: "食べログ", externalUrl: "https://example.com/tabelog-source",
         resultPrecision: "partial", usageType: "plus", totalPrizes: null, totalPrizesKind: "unknown",
         prizes: [{ id: "figure", name: "フィギュア", quantity: 1, quantityKind: "at_least" }],
         items: [{ id: "figure-chiikawa", name: "ちいかわ", prizeCategoryName: "フィギュア", quantity: 1, quantityKind: "at_least" }],
@@ -165,7 +181,7 @@ test("店舗詳細で通常投稿と外部参考情報を分離し、0・不明�
   await expect(external).toContainText("1個以上");
   await expect(external).toContainText("一部情報のみ");
   await expect(external).toContainText("2026年8月23日頃");
-  const source = page.getByRole("link", { name: /出典を見る/ });
+  const source = page.getByRole("link", { name: /出典を見る/ }).first();
   await expect(source).toHaveAttribute("href", "https://example.com/source");
   await expect(source).toHaveAttribute("target", "_blank");
   await expect(source).toHaveAttribute("rel", "noopener noreferrer");
@@ -177,7 +193,7 @@ test("店舗詳細で通常投稿と外部参考情報を分離し、0・不明�
 
 test("外部参考情報が0件の店舗を中立的に表示し、モバイル幅でも読める", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.route("**/api/stores/kura-547/external-reports?limit=10", (route) => route.fulfill({
+  await page.route("**/api/stores/kura-547/external-reports**", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
     body: JSON.stringify({ items: [] }),
@@ -199,20 +215,25 @@ test("実DBの外部seedを取得しても全国統計とランキングは0件�
   const external = await externalResponse.json();
   const stats = await statsResponse.json();
   const ranking = await rankingResponse.json();
-  expect(external.items).toHaveLength(1);
-  expect(external.items[0]).toMatchObject({ sourceType: "external", totalPrizes: 9, resultPrecision: "complete" });
-  expect(external.items[0].prizes).toEqual(expect.arrayContaining([
-    expect.objectContaining({ name: "フィギュア", quantity: 0, quantityKind: "exact" }),
-    expect.objectContaining({ name: "缶バッジ", quantity: 3, quantityKind: "exact" }),
-  ]));
-  expect(external.items[0].items).toHaveLength(8);
+  expect(external.items).toHaveLength(0);
   expect(stats.reportCount).toBe(0);
   expect(stats.totalPrizeCount).toBe(0);
   expect(ranking.items).toEqual([]);
 });
 
+test("本人投稿APIは未認証アクセスを拒否する", async ({ request }) => {
+  const [list, withdraw, restore] = await Promise.all([
+    request.get("/api/me/reports"),
+    request.post("/api/me/reports/not-found/withdraw"),
+    request.post("/api/me/reports/not-found/restore"),
+  ]);
+  expect(list.status()).toBe(401);
+  expect(withdraw.status()).toBe(401);
+  expect(restore.status()).toBe(401);
+});
+
 test("投稿0件とサンプル不足の店舗カードを中立的に表示する", async ({ page }) => {
-  await page.route("**/api/stats", (route) => route.fulfill({
+  await page.route("**/api/stats?*", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
     body: JSON.stringify({ reportCount: 2, totalDraws: 18, totalWins: 2, totalPrizeCount: 2, completeReportCount: 1, completePrizeCount: 2, prizes: [], stores: [{ storeId: "kura-664", reportCount: 2, totalDraws: 18, totalWins: 2, completeReportCount: 1, completePrizeCount: 2, prizes: [] }] }),
@@ -310,4 +331,43 @@ test("BAN中は投稿できない理由を表示する", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
   await expect(page.locator("#posting-status")).toHaveText("このアカウントからは現在投稿できません。");
+});
+
+test("確約景品入力を抽選景品と分けて開閉できる", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  const guaranteed = page.locator("#guaranteed-prize-fields");
+  await expect(guaranteed).toBeHidden();
+  await page.getByLabel("確約景品も入力する").check();
+  await expect(guaranteed).toBeVisible();
+  await expect(guaranteed.getByRole("spinbutton")).toHaveCount(3);
+  await page.getByLabel("確約景品も入力する").uncheck();
+  await expect(guaranteed).toBeHidden();
+});
+
+test("都道府県別集計をタブで遅延取得する", async ({ page }) => {
+  await page.route("**/api/stats/prefectures?*", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ items: [{ prefecture: "東京都", reportCount: 3, reportingStoreCount: 2, totalDraws: 20, totalWins: 4 }] }),
+  }));
+  await page.goto("/");
+  await page.getByRole("tab", { name: "都道府県別集計" }).click();
+  await expect(page.locator("#prefecture-stats")).toContainText("東京都");
+  await expect(page.locator("#prefecture-stats")).toContainText("20回");
+});
+
+test("ログインユーザーは自分の投稿を確認し、取り下げ状態を区別できる", async ({ page }) => {
+  await page.route("**/api/me/reports?*", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ items: [{ id: "report-1", storeName: "新宿靖国通り店", campaignName: "テスト", visitDate: "2026-09-02", panelDraws: 5, panelWins: 1, mobileDraws: 0, mobileWins: 0, status: "withdrawn", moderationStatus: "active", prizes: [{ id: "figure", name: "フィギュア", quantity: 1, acquisitionType: "draw" }] }] }),
+  }));
+  await page.goto("/");
+  await page.getByRole("button", { name: "Googleでログイン" }).click();
+  await page.getByRole("button", { name: "自分の投稿" }).click();
+  const dialog = page.getByRole("dialog", { name: "自分の投稿" });
+  await expect(dialog).toContainText("新宿靖国通り店");
+  await expect(dialog).toContainText("取り下げ済み");
+  await expect(dialog.getByRole("button", { name: "取り下げを解除" })).toBeVisible();
 });

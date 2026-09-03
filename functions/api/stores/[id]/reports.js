@@ -9,18 +9,20 @@ export async function onRequestGet({ request, env, params }) {
     const limit = boundedLimit(url.searchParams.get("limit"), 10, 50);
     const reports = (await env.DB.prepare(`
       SELECT id, visit_date, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins, unknown_prize_count, prize_breakdown_status, created_at
-      FROM reports
-      WHERE store_id = ? AND campaign_id = ? AND status = 'active'
+      FROM active_user_reports
+      WHERE store_id = ? AND campaign_id = ?
       ORDER BY created_at DESC, id DESC LIMIT ?
     `).bind(params.id, campaign.id, limit).all()).results;
     let prizes = [];
     if (reports.length) {
       const placeholders = reports.map(() => "?").join(",");
       prizes = (await env.DB.prepare(`
-        SELECT rp.report_id, rp.quantity, pc.id, pc.name
-        FROM report_prizes rp JOIN prize_categories pc ON pc.id = rp.prize_category_id
-        WHERE rp.report_id IN (${placeholders}) AND rp.quantity > 0
-        ORDER BY pc.sort_order, pc.id
+        SELECT acquisition.report_id, acquisition.acquisition_type,
+          acquisition.quantity, pc.id, pc.name
+        FROM report_prize_acquisitions acquisition
+        JOIN prize_categories pc ON pc.id = acquisition.prize_category_id
+        WHERE acquisition.report_id IN (${placeholders}) AND acquisition.quantity > 0
+        ORDER BY acquisition.acquisition_type, pc.sort_order, pc.id
       `).bind(...reports.map((report) => report.id)).all()).results;
     }
     return json({ items: reports.map((report) => ({
@@ -33,7 +35,8 @@ export async function onRequestGet({ request, env, params }) {
       mobileWins: report.mobile_wins,
       unknownPrizeCount: report.unknown_prize_count,
       prizeBreakdownStatus: report.prize_breakdown_status,
-      prizes: prizes.filter((prize) => prize.report_id === report.id).map((prize) => ({ id: prize.id, name: prize.name, quantity: prize.quantity })),
+      prizes: prizes.filter((prize) => prize.report_id === report.id && prize.acquisition_type === "draw").map((prize) => ({ id: prize.id, name: prize.name, quantity: Number(prize.quantity), acquisitionType: "draw" })),
+      guaranteedPrizes: prizes.filter((prize) => prize.report_id === report.id && prize.acquisition_type === "guaranteed").map((prize) => ({ id: prize.id, name: prize.name, quantity: Number(prize.quantity), acquisitionType: "guaranteed" })),
     })) }, { headers: cacheHeaders(30) });
   } catch (error) { return unavailable(error); }
 }

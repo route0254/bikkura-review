@@ -84,3 +84,21 @@ test("ランキングは最低サンプル条件・順序・同率順位を守�
   assert.deepEqual(ranked.map((row) => [row.storeId, row.rank]), [["a", 1], ["b", 1], ["c", 3]]);
   assert.equal(ranked.some((row) => row.storeId === "small"), false);
 });
+
+test("確約景品は抽選景品集計に含めず、取り下げ済み投稿は全体から除外する", () => {
+  const active = {
+    status: "active", sourceType: "user", usageType: "normal",
+    panelDraws: 5, panelWins: 1, mobileDraws: 0, mobileWins: 0,
+    prizeBreakdownStatus: "complete", unknownPrizeCount: 0,
+    prizes: [
+      { acquisitionType: "draw", prizeCategoryId: "figure", quantity: 1 },
+      { acquisitionType: "guaranteed", prizeCategoryId: "figure", quantity: 10 },
+    ],
+  };
+  const summary = summarizeReports([active, { ...active, withdrawn: true, panelDraws: 100 }]);
+  assert.equal(summary.reportCount, 1);
+  assert.equal(summary.totalPanelDraws, 5);
+  assert.equal(summary.totalPrizeCount, 1);
+  assert.equal(summary.completePrizeCount, 1);
+  assert.deepEqual(summary.completePrizes, { figure: 1 });
+});

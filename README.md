@@ -31,7 +31,7 @@ pnpm run dev
 
 ## D1
 
-binding名は `DB` です。migrationは `migrations/` の番号順に適用します。既存DBには `0005_external_reference_reports.sql` まで追加適用してください。
+binding名は `DB` です。migrationは `migrations/` の番号順に適用します。既存DBには `0006_acquisition_and_withdrawal.sql` まで追加適用してください。`0006` は既存テーブルを再構築しない追加型migrationです。
 
 ```bash
 pnpm run db:migrate
@@ -51,6 +51,10 @@ pnpm run db:seed
 - `users`: HMAC変換した内部ユーザーIDと利用状態（`active` / `restricted` / `banned`）
 - `reports`: 投稿本体。`active` / `pending` / `hidden`、景品入力状態、最小限の不正対策メタデータを保持
 - `report_prizes`: 投稿と景品区分の個数
+- `report_guaranteed_prizes` / `report_guaranteed_item_breakdowns` / `report_guaranteed_items`: セット商品などで確実にもらえる景品。抽選景品とは書き込み先を分離
+- `report_withdrawals`: 本人による投稿取り下げ。`report_id` を主キーとして重複を防止し、元投稿は削除しない
+- `report_prize_acquisitions` / `report_prize_item_acquisitions`: 抽選景品を `draw`、確約景品を `guaranteed` として統合参照する読み取り用VIEW
+- `active_user_reports`: 公開中の利用者投稿から取り下げ済みを除く、統計・一覧共通VIEW
 - `report_prize_item_breakdowns`: 投稿・景品カテゴリごとの個別景品内訳状態
 - `report_prize_items`: 投稿と個別景品の個数
 - `external_reports`: 外部公開情報から確認した参考データ。通常投稿とは別テーブルで、店舗未特定は `store_id = NULL`
@@ -73,6 +77,11 @@ pnpm run db:seed
 - `GET /api/stores/:id/reports?campaign=&limit=`
 - `GET /api/stores/:id/external-reports?campaign=&limit=`
 - `GET /api/stats?campaign=`
+- `GET /api/stats/prefectures?campaign=`
+- `GET /api/recent-reports?campaign=&limit=`
+- `GET /api/me/reports?limit=`（Googleログイン必須）
+- `POST /api/me/reports/:id/withdraw`（本人のみ）
+- `POST /api/me/reports/:id/restore`（本人のみ・公開中投稿だけ）
 - `GET /api/prize-items?campaign=`
 - `GET /api/rankings/figure?campaign=`
 - `GET /api/config`
@@ -156,7 +165,7 @@ pnpm run build
 3. Firebase AuthenticationでGoogleプロバイダーを有効化
 4. Firebase Authorized domainsへ `review.chiikatsu-map.com` を追加（APIキーを制限している場合は同ドメインも許可）
 5. Cloudflare Pagesに `TURNSTILE_SECRET_KEY`、`RATE_LIMIT_SALT`、`ABUSE_HASH_SALT`、`USER_ID_SECRET` をSecretとして設定
-6. リモートD1へ `0005_external_reference_reports.sql` までmigrationを適用し、通常seedとexternal seedを投入
+6. リモートD1へ `0006_acquisition_and_withdrawal.sql` までmigrationを適用し、通常seedとexternal seedを投入
 7. Pagesを一度だけ再デプロイ
 8. 匿名投稿、Googleログイン、ログアウト、残り投稿件数、上限到達時の表示を確認
 9. `pending`投稿が公開集計・最近の投稿に含まれないことを確認
@@ -166,7 +175,15 @@ pnpm run build
 
 ## マスタデータ
 
-キャンペーン期間と景品区分は、くら寿司の2026年8月10日付プレスリリースで確認しました。初期景品区分はフィギュア、缶バッジ、アクリルマグネットです。本文で名称を確認できるフィギュア5種に加え、外部参考情報でカテゴリと名称を明確に確認済みの缶バッジ3種・アクリルマグネット5種を個別景品マスタへ登録しています。カテゴリが確認できない名称は推測で登録しません。
+キャンペーン期間と景品区分は、くら寿司の2026年8月10日付プレスリリースと公式景品画像で確認しました。個別景品マスターはフィギュア5種・缶バッジ8種・アクリルマグネット8種の計21種です。カテゴリが確認できない名称は推測で登録しません。
+
+## 取り下げと確約景品
+
+既存の `report_prizes` はすべて従来どおり抽選景品（`draw`）として扱います。今後入力する確約景品だけを専用テーブルへ保存し、抽選回数・当選率・抽選景品割合・ランキングには一切含めません。
+
+ログイン後の「自分の投稿」から取り下げると `report_withdrawals` に記録し、元投稿は保持したまま全国・店舗・都道府県集計、ランキング、最近の投稿、店舗の投稿一覧から除外します。本人が解除した場合は対象店舗・キャンペーンの事前集計を安全に再構築します。管理時に直接SQLで状態を変更した場合は `scripts/rebuild-stats.sql` を実行してください。
+
+外部参考情報は出典URLを確認できた `active` データだけを公開します。URL未確認データは `pending` で保持し、画面に「URL未登録」とは表示しません。
 
 店舗はくら寿司公式の全国店舗一覧から、ビッくらポン！対象外と明記されている「無添蔵」を除く552店舗（47都道府県）を登録しています。店舗IDには公式詳細ページのIDを使い、住所と緯度・経度も公式一覧の値を収録しています。
 

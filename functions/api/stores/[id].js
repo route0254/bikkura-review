@@ -12,8 +12,8 @@ async function allPeriodStats(db, storeId, campaignId) {
     `).bind(storeId, campaignId).first(),
     db.prepare(`
       SELECT COUNT(*) AS complete_report_count
-      FROM reports
-      WHERE store_id = ? AND campaign_id = ? AND status = 'active' AND prize_breakdown_status = 'complete'
+      FROM active_user_reports
+      WHERE store_id = ? AND campaign_id = ? AND prize_breakdown_status = 'complete'
     `).bind(storeId, campaignId).first(),
     db.prepare(`
       SELECT usage_type, report_count, total_panel_draws, total_panel_wins,
@@ -43,8 +43,8 @@ async function recentPeriodStats(db, storeId, campaignId, startDate, endDate) {
         COALESCE(SUM(mobile_wins), 0) AS total_mobile_wins,
         COALESCE(SUM(unknown_prize_count + COALESCE((SELECT SUM(quantity) FROM report_prizes WHERE report_id = reports.id), 0)), 0) AS total_prize_count,
         COALESCE(SUM(CASE WHEN prize_breakdown_status = 'complete' THEN 1 ELSE 0 END), 0) AS complete_report_count
-      FROM reports
-      WHERE store_id = ? AND campaign_id = ? AND visit_date BETWEEN ? AND ? AND status = 'active'
+      FROM active_user_reports AS reports
+      WHERE store_id = ? AND campaign_id = ? AND visit_date BETWEEN ? AND ?
     `).bind(...bindings).first(),
     db.prepare(`
       SELECT usage_type, COUNT(*) AS report_count,
@@ -52,16 +52,16 @@ async function recentPeriodStats(db, storeId, campaignId, startDate, endDate) {
         COALESCE(SUM(panel_wins), 0) AS total_panel_wins,
         COALESCE(SUM(mobile_draws), 0) AS total_mobile_draws,
         COALESCE(SUM(mobile_wins), 0) AS total_mobile_wins
-      FROM reports
-      WHERE store_id = ? AND campaign_id = ? AND visit_date BETWEEN ? AND ? AND status = 'active'
+      FROM active_user_reports
+      WHERE store_id = ? AND campaign_id = ? AND visit_date BETWEEN ? AND ?
       GROUP BY usage_type
     `).bind(...bindings).all(),
     db.prepare(`
       SELECT pc.id, pc.name, COALESCE(SUM(CASE WHEN r.id IS NOT NULL THEN rp.quantity ELSE 0 END), 0) AS quantity
       FROM prize_categories pc
       LEFT JOIN report_prizes rp ON rp.prize_category_id = pc.id
-      LEFT JOIN reports r ON r.id = rp.report_id AND r.store_id = ? AND r.campaign_id = ?
-        AND r.visit_date BETWEEN ? AND ? AND r.status = 'active' AND r.prize_breakdown_status = 'complete'
+      LEFT JOIN active_user_reports r ON r.id = rp.report_id AND r.store_id = ? AND r.campaign_id = ?
+        AND r.visit_date BETWEEN ? AND ? AND r.prize_breakdown_status = 'complete'
       WHERE pc.campaign_id = ? AND pc.active = 1
       GROUP BY pc.id, pc.name, pc.sort_order
       ORDER BY pc.sort_order, pc.id
@@ -74,8 +74,8 @@ async function nationalPrizeStats(db, campaignId, startDate, endDate) {
   if (!startDate) {
     const [reportRow, prizeResult] = await Promise.all([
       db.prepare(`
-        SELECT COUNT(*) AS complete_report_count FROM reports
-        WHERE campaign_id = ? AND status = 'active' AND prize_breakdown_status = 'complete'
+        SELECT COUNT(*) AS complete_report_count FROM active_user_reports
+        WHERE campaign_id = ? AND prize_breakdown_status = 'complete'
       `).bind(campaignId).first(),
       db.prepare(`
         SELECT pc.id, pc.name, COALESCE(SUM(scps.reported_quantity), 0) AS quantity
@@ -92,15 +92,15 @@ async function nationalPrizeStats(db, campaignId, startDate, endDate) {
   }
   const [reportRow, prizeResult] = await Promise.all([
     db.prepare(`
-      SELECT COUNT(*) AS complete_report_count FROM reports
-      WHERE campaign_id = ? AND visit_date BETWEEN ? AND ? AND status = 'active' AND prize_breakdown_status = 'complete'
+      SELECT COUNT(*) AS complete_report_count FROM active_user_reports
+      WHERE campaign_id = ? AND visit_date BETWEEN ? AND ? AND prize_breakdown_status = 'complete'
     `).bind(campaignId, startDate, endDate).first(),
     db.prepare(`
       SELECT pc.id, pc.name, COALESCE(SUM(CASE WHEN r.id IS NOT NULL THEN rp.quantity ELSE 0 END), 0) AS quantity
       FROM prize_categories pc
       LEFT JOIN report_prizes rp ON rp.prize_category_id = pc.id
-      LEFT JOIN reports r ON r.id = rp.report_id AND r.campaign_id = ?
-        AND r.visit_date BETWEEN ? AND ? AND r.status = 'active' AND r.prize_breakdown_status = 'complete'
+      LEFT JOIN active_user_reports r ON r.id = rp.report_id AND r.campaign_id = ?
+        AND r.visit_date BETWEEN ? AND ? AND r.prize_breakdown_status = 'complete'
       WHERE pc.campaign_id = ? AND pc.active = 1
       GROUP BY pc.id, pc.name, pc.sort_order
       ORDER BY pc.sort_order, pc.id
@@ -119,11 +119,11 @@ async function itemPrizeStats(db, storeId, campaignId, startDate, endDate) {
       SELECT breakdown.prize_category_id, COUNT(*) AS complete_report_count,
         COALESCE(SUM(category_prize.quantity), 0) AS complete_item_count
       FROM report_prize_item_breakdowns breakdown
-      JOIN reports r ON r.id = breakdown.report_id
+      JOIN active_user_reports r ON r.id = breakdown.report_id
       JOIN report_prizes category_prize
         ON category_prize.report_id = breakdown.report_id
         AND category_prize.prize_category_id = breakdown.prize_category_id
-      WHERE r.store_id = ? AND r.campaign_id = ? AND r.status = 'active'
+      WHERE r.store_id = ? AND r.campaign_id = ?
         AND breakdown.status = 'complete' ${dateClause}
       GROUP BY breakdown.prize_category_id
     `).bind(...summaryBindings).all(),
@@ -134,8 +134,8 @@ async function itemPrizeStats(db, storeId, campaignId, startDate, endDate) {
       LEFT JOIN report_prize_items reported ON reported.prize_item_id = item.id
       LEFT JOIN report_prize_item_breakdowns breakdown
         ON breakdown.report_id = reported.report_id AND breakdown.prize_category_id = item.prize_category_id
-      LEFT JOIN reports r ON r.id = reported.report_id AND r.store_id = ? AND r.campaign_id = ?
-        AND r.status = 'active' ${dateClause}
+      LEFT JOIN active_user_reports r ON r.id = reported.report_id AND r.store_id = ? AND r.campaign_id = ?
+        ${dateClause}
       WHERE item.campaign_id = ? AND item.active = 1
       GROUP BY item.id, item.prize_category_id, item.name, item.sort_order
       ORDER BY item.prize_category_id, item.sort_order, item.id
@@ -158,6 +158,21 @@ async function itemPrizeStats(db, storeId, campaignId, startDate, endDate) {
   return [...byCategory.values()];
 }
 
+async function guaranteedPrizeStats(db, storeId, campaignId, startDate, endDate) {
+  const dateClause = startDate ? "AND report.visit_date BETWEEN ? AND ?" : "";
+  const bindings = startDate ? [storeId, campaignId, startDate, endDate] : [storeId, campaignId];
+  const rows = (await db.prepare(`
+    SELECT category.id, category.name, COALESCE(SUM(prize.quantity), 0) AS quantity
+    FROM report_guaranteed_prizes prize
+    JOIN active_user_reports report ON report.id = prize.report_id
+    JOIN prize_categories category ON category.id = prize.prize_category_id
+    WHERE report.store_id = ? AND report.campaign_id = ? ${dateClause}
+    GROUP BY category.id, category.name, category.sort_order
+    ORDER BY category.sort_order, category.id
+  `).bind(...bindings).all()).results;
+  return rows.map((row) => ({ id: row.id, name: row.name, quantity: Number(row.quantity) }));
+}
+
 export async function onRequestGet({ request, env, params }) {
   try {
     const url = new URL(request.url);
@@ -166,16 +181,17 @@ export async function onRequestGet({ request, env, params }) {
     const campaign = await getCampaign(env.DB, url.searchParams.get("campaign"));
     const store = await env.DB.prepare("SELECT * FROM stores WHERE id = ? AND active = 1").bind(params.id).first();
     if (!store) return apiError("店舗が見つかりません。", 404);
-    if (!campaign) return json({ ...mapStore(store), campaign: null, period, periodStart: null, usage: [], prizes: [], itemPrizes: [], national: null }, { headers: cacheHeaders(60) });
+    if (!campaign) return json({ ...mapStore(store), campaign: null, period, periodStart: null, usage: [], prizes: [], itemPrizes: [], guaranteedPrizes: [], national: null }, { headers: cacheHeaders(60) });
 
     const today = todayInJapan();
     const periodStart = periodStartDate(today, period);
-    const [result, national, itemPrizes] = await Promise.all([
+    const [result, national, itemPrizes, guaranteedPrizes] = await Promise.all([
       period === "7d"
         ? recentPeriodStats(env.DB, store.id, campaign.id, periodStart, today)
         : allPeriodStats(env.DB, store.id, campaign.id),
       nationalPrizeStats(env.DB, campaign.id, periodStart, today),
       itemPrizeStats(env.DB, store.id, campaign.id, periodStart, today),
+      guaranteedPrizeStats(env.DB, store.id, campaign.id, periodStart, today),
     ]);
     const completePrizeCount = result.prizes.reduce((sum, prize) => sum + Number(prize.quantity ?? 0), 0);
     const mappedStore = mapStore({ ...store, ...result.totals, complete_report_count: result.completeReports, complete_prize_count: completePrizeCount });
@@ -187,6 +203,7 @@ export async function onRequestGet({ request, env, params }) {
       usage: mapUsageStats(result.usage),
       prizes: result.prizes.map((prize) => ({ id: prize.id, name: prize.name, quantity: Number(prize.quantity ?? 0) })),
       itemPrizes,
+      guaranteedPrizes,
       national: { stats: { completeReportCount: national.completeReportCount, completePrizeCount: national.completePrizeCount }, prizes: national.prizes },
     }, { headers: cacheHeaders(period === "7d" ? 30 : 60) });
   } catch (error) { return unavailable(error); }

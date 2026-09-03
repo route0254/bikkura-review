@@ -1,0 +1,36 @@
+import { getCampaign, mapCampaign } from "../_lib/data.js";
+import { apiError, boundedLimit, cacheHeaders, json, unavailable } from "../_lib/http.js";
+
+export async function onRequestGet({ request, env }) {
+  try {
+    const url = new URL(request.url);
+    const campaign = await getCampaign(env.DB, url.searchParams.get("campaign"));
+    if (!campaign) return apiError("キャンペーンが見つかりません。", 404);
+    const limit = boundedLimit(url.searchParams.get("limit"), 10, 30);
+    const reports = (await env.DB.prepare(`
+      SELECT report.id, report.store_id, store.name AS store_name, store.prefecture,
+        report.visit_date, report.created_at, report.panel_draws, report.panel_wins,
+        report.mobile_draws, report.mobile_wins
+      FROM active_user_reports report
+      JOIN stores store ON store.id = report.store_id AND store.active = 1
+      WHERE report.campaign_id = ?
+      ORDER BY report.created_at DESC, report.id DESC
+      LIMIT ?
+    `).bind(campaign.id, limit).all()).results;
+    return json({
+      campaign: mapCampaign(campaign),
+      items: reports.map((report) => ({
+        id: report.id,
+        storeId: report.store_id,
+        storeName: report.store_name,
+        prefecture: report.prefecture,
+        visitDate: report.visit_date,
+        createdAt: report.created_at,
+        panelDraws: Number(report.panel_draws),
+        panelWins: Number(report.panel_wins),
+        mobileDraws: Number(report.mobile_draws),
+        mobileWins: Number(report.mobile_wins),
+      })),
+    }, { headers: cacheHeaders(30) });
+  } catch (error) { return unavailable(error); }
+}

@@ -16,7 +16,8 @@
     "db:migrate": "wrangler d1 migrations apply DB --local",
     "db:seed": "node scripts/build-seed-sql.mjs && wrangler d1 execute DB --local --file=seed/seed.sql",
     "seed:external": "node scripts/validate-external-data.mjs && node scripts/build-external-seed-sql.mjs && wrangler d1 execute DB --local --file=seed/external-reports.sql",
-    "build": "pnpm run check && pnpm run test:unit && node scripts/build.mjs"
+    "build": "pnpm run check && pnpm run test:unit && node scripts/build.mjs",
+    "verify": "pnpm run build && pnpm run test:smoke"
   },
   "dependencies": {
     "jose": "6.1.0"

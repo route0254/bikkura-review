@@ -6,7 +6,7 @@ export async function onRequestGet({ request, env }) {
     const url = new URL(request.url);
     const campaign = await getCampaign(env.DB, url.searchParams.get("campaign"));
     if (!campaign) return apiError("キャンペーンが見つかりません。", 404);
-    const [totals, prizes, breakdown, usageRows, storeRows, storePrizeRows] = await Promise.all([
+    const [totals, prizes, breakdown, usageRows, storeRows, storePrizeRows, coverage] = await Promise.all([
       env.DB.prepare(`
         SELECT
           COALESCE(SUM(report_count), 0) AS report_count,
@@ -25,8 +25,8 @@ export async function onRequestGet({ request, env }) {
       `).bind(campaign.id).all(),
       env.DB.prepare(`
         SELECT COUNT(*) AS complete_report_count
-        FROM reports
-        WHERE campaign_id = ? AND status = 'active' AND prize_breakdown_status = 'complete'
+        FROM active_user_reports
+        WHERE campaign_id = ? AND prize_breakdown_status = 'complete'
       `).bind(campaign.id).first(),
       env.DB.prepare(`
         SELECT
@@ -47,16 +47,23 @@ export async function onRequestGet({ request, env }) {
           scs.total_panel_draws + scs.total_mobile_draws AS total_draws,
           scs.total_panel_wins + scs.total_mobile_wins AS total_wins,
           scs.total_prize_count,
-          COALESCE(complete.complete_report_count, 0) AS complete_report_count
+          COALESCE(complete.complete_report_count, 0) AS complete_report_count,
+          latest.latest_report_at
         FROM store_campaign_stats scs
         LEFT JOIN (
           SELECT store_id, COUNT(*) AS complete_report_count
-          FROM reports
-          WHERE campaign_id = ? AND status = 'active' AND prize_breakdown_status = 'complete'
+          FROM active_user_reports
+          WHERE campaign_id = ? AND prize_breakdown_status = 'complete'
           GROUP BY store_id
         ) complete ON complete.store_id = scs.store_id
+        LEFT JOIN (
+          SELECT store_id, MAX(created_at) AS latest_report_at
+          FROM active_user_reports
+          WHERE campaign_id = ?
+          GROUP BY store_id
+        ) latest ON latest.store_id = scs.store_id
         WHERE scs.campaign_id = ? AND scs.report_count > 0
-      `).bind(campaign.id, campaign.id).all(),
+      `).bind(campaign.id, campaign.id, campaign.id).all(),
       env.DB.prepare(`
         SELECT scps.store_id, pc.id, pc.name, scps.reported_quantity AS quantity
         FROM store_campaign_prize_stats scps
@@ -64,6 +71,17 @@ export async function onRequestGet({ request, env }) {
         WHERE scps.campaign_id = ? AND pc.active = 1 AND scps.reported_quantity > 0
         ORDER BY scps.store_id, pc.sort_order, pc.id
       `).bind(campaign.id).all(),
+      env.DB.prepare(`
+        SELECT
+          (SELECT COUNT(*) FROM stores WHERE active = 1) AS total_store_count,
+          (SELECT COUNT(DISTINCT prefecture) FROM stores WHERE active = 1) AS total_prefecture_count,
+          COUNT(DISTINCT CASE WHEN stats.report_count > 0 THEN stats.store_id END) AS reporting_store_count,
+          COUNT(DISTINCT CASE WHEN stats.report_count > 0 THEN store.prefecture END) AS reporting_prefecture_count
+        FROM stores store
+        LEFT JOIN store_campaign_stats stats
+          ON stats.store_id = store.id AND stats.campaign_id = ?
+        WHERE store.active = 1
+      `).bind(campaign.id).first(),
     ]);
     const prizeItems = prizes.results.map((prize) => ({ id: prize.id, name: prize.name, quantity: Number(prize.quantity) }));
     const completePrizeCount = prizeItems.reduce((sum, prize) => sum + prize.quantity, 0);
@@ -76,6 +94,12 @@ export async function onRequestGet({ request, env }) {
       campaign: mapCampaign(campaign),
       ...mapSummary({ ...totals, ...breakdown, complete_prize_count: completePrizeCount }),
       prizes: prizeItems,
+      coverage: {
+        reportingStoreCount: Number(coverage?.reporting_store_count ?? 0),
+        totalStoreCount: Number(coverage?.total_store_count ?? 0),
+        reportingPrefectureCount: Number(coverage?.reporting_prefecture_count ?? 0),
+        totalPrefectureCount: Number(coverage?.total_prefecture_count ?? 0),
+      },
       usage: mapUsageStats(usageRows.results),
       stores: storeRows.results.map((row) => {
         const storePrizes = prizesByStore.get(row.store_id) ?? [];
@@ -83,6 +107,7 @@ export async function onRequestGet({ request, env }) {
           storeId: row.store_id,
           ...mapSummary({ ...row, complete_prize_count: storePrizes.reduce((sum, prize) => sum + prize.quantity, 0) }),
           prizes: storePrizes,
+          latestReportAt: row.latest_report_at,
         };
       }),
     }, { headers: cacheHeaders(60) });

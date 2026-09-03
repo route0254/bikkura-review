@@ -3,51 +3,68 @@ import { EXTERNAL_PLATFORM_LABELS, formatExternalQuantity } from "/lib/external-
 import { hasEnoughItemData, hasEnoughPrizeData, hasEnoughRateData, prizeShares } from "/lib/stats.js";
 import { validateReportPayload } from "/lib/validation.js";
 import { getIdToken, initializeAuth, signIn, signOut } from "/auth.js";
+import { requiredElement, requiredElements } from "/lib/dom.js";
+import { sortStores } from "/lib/store-sorting.js";
 
 const STORE_RENDER_BATCH_SIZE = 60;
-const state = { stores: [], campaigns: [], campaign: null, stats: null, selectedStoreId: null, lastTrigger: null, visibleStoreCount: STORE_RENDER_BATCH_SIZE, auth: { enabled: false, authenticated: false }, posting: null, rankingLoaded: false, resultView: "stores" };
+const state = { stores: [], campaigns: [], campaign: null, stats: null, selectedStoreId: null, lastTrigger: null, visibleStoreCount: STORE_RENDER_BATCH_SIZE, auth: { enabled: false, authenticated: false }, posting: null, rankingLoaded: false, prefecturesLoaded: false, resultView: "stores", userLocation: null };
 let turnstileWidgetId = null;
 let turnstileLoader = null;
 
 const elements = {
-  campaignSelect: document.querySelector("#campaign-select"),
-  campaignTitle: document.querySelector("#campaign-title"),
-  statsGrid: document.querySelector("#stats-grid"),
-  prizeSummary: document.querySelector("#prize-summary"),
-  search: document.querySelector("#store-search"),
-  searchClear: document.querySelector("#search-clear"),
-  prefecture: document.querySelector("#prefecture-filter"),
-  storeCount: document.querySelector("#store-count"),
-  storeStatus: document.querySelector("#store-status"),
-  storeList: document.querySelector("#store-list"),
-  storeLoadMore: document.querySelector("#store-load-more"),
-  storeDialog: document.querySelector("#store-dialog"),
-  storeDialogTitle: document.querySelector("#store-dialog-title"),
-  storeDialogBody: document.querySelector("#store-dialog-body"),
-  reportDialog: document.querySelector("#report-dialog"),
-  reportForm: document.querySelector("#report-form"),
-  reportPrefecture: document.querySelector("#report-prefecture"),
-  reportStore: document.querySelector("#report-store"),
-  reportCampaign: document.querySelector("#report-campaign"),
-  visitDate: document.querySelector("#visit-date"),
-  prizeFields: document.querySelector("#prize-fields"),
-  formErrors: document.querySelector("#form-errors"),
-  formStatus: document.querySelector("#form-status"),
-  authControls: document.querySelector("#auth-controls"),
-  authStatus: document.querySelector("#auth-status"),
-  loginButton: document.querySelector("#login-button"),
-  logoutButton: document.querySelector("#logout-button"),
-  postingStatus: document.querySelector("#posting-status"),
-  resultViewTabs: [...document.querySelectorAll("[data-view-tab]")],
-  resultViewPanels: [...document.querySelectorAll("[data-view-panel]")],
-  rankingStatus: document.querySelector("#ranking-status"),
-  rankingList: document.querySelector("#ranking-list"),
+  campaignSelect: requiredElement("#campaign-select"),
+  campaignTitle: requiredElement("#campaign-title"),
+  campaignPeriod: requiredElement("#campaign-period"),
+  campaignArchiveNote: requiredElement("#campaign-archive-note"),
+  statsGrid: requiredElement("#stats-grid"),
+  prizeSummary: requiredElement("#prize-summary"),
+  coverageSummary: requiredElement("#coverage-summary"),
+  search: requiredElement("#store-search"),
+  searchClear: requiredElement("#search-clear"),
+  prefecture: requiredElement("#prefecture-filter"),
+  storeSort: requiredElement("#store-sort"),
+  useLocation: requiredElement("#use-location"),
+  locationStatus: requiredElement("#location-status"),
+  storeCount: requiredElement("#store-count"),
+  storeStatus: requiredElement("#store-status"),
+  storeList: requiredElement("#store-list"),
+  storeLoadMore: requiredElement("#store-load-more"),
+  storeDialog: requiredElement("#store-dialog"),
+  storeDialogTitle: requiredElement("#store-dialog-title"),
+  storeDialogBody: requiredElement("#store-dialog-body"),
+  reportDialog: requiredElement("#report-dialog"),
+  reportForm: requiredElement("#report-form"),
+  reportPrefecture: requiredElement("#report-prefecture"),
+  reportStore: requiredElement("#report-store"),
+  reportCampaign: requiredElement("#report-campaign"),
+  visitDate: requiredElement("#visit-date"),
+  prizeFields: requiredElement("#prize-fields"),
+  guaranteedToggle: requiredElement("#guaranteed-toggle"),
+  guaranteedPrizeFields: requiredElement("#guaranteed-prize-fields"),
+  formErrors: requiredElement("#form-errors"),
+  formStatus: requiredElement("#form-status"),
+  authControls: requiredElement("#auth-controls"),
+  authStatus: requiredElement("#auth-status"),
+  loginButton: requiredElement("#login-button"),
+  myReportsButton: requiredElement("#my-reports-button"),
+  logoutButton: requiredElement("#logout-button"),
+  myReportsDialog: requiredElement("#my-reports-dialog"),
+  myReportsBody: requiredElement("#my-reports-body"),
+  postingStatus: requiredElement("#posting-status"),
+  resultViewTabs: requiredElements("[data-view-tab]"),
+  resultViewPanels: requiredElements("[data-view-panel]"),
+  rankingStatus: requiredElement("#ranking-status"),
+  rankingList: requiredElement("#ranking-list"),
+  prefectureStatsStatus: requiredElement("#prefecture-stats-status"),
+  prefectureStatsList: requiredElement("#prefecture-stats-list"),
+  recentNationalReports: requiredElement("#recent-national-reports"),
 };
 
 function renderAuth(authState) {
   state.auth = authState;
   elements.authControls.hidden = !authState.enabled;
   elements.loginButton.hidden = !authState.enabled || authState.authenticated;
+  elements.myReportsButton.hidden = !authState.enabled || !authState.authenticated;
   elements.logoutButton.hidden = !authState.enabled || !authState.authenticated;
   elements.authStatus.textContent = authState.authenticated ? "ログイン中" : "匿名利用中";
   refreshPostingStatus();
@@ -124,14 +141,25 @@ function getStats(store) {
   return store.stats ?? { reportCount: 0, totalDraws: 0, totalWins: 0, totalPrizeCount: 0, completeReportCount: 0, completePrizeCount: 0 };
 }
 
+function todayInJapan() {
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+}
+
+function isCampaignArchived(campaign = state.campaign) {
+  return Boolean(campaign?.endsOn && campaign.endsOn < todayInJapan());
+}
+
 function renderCampaigns() {
   elements.campaignSelect.innerHTML = state.campaigns.map((campaign) => `<option value="${escapeHtml(campaign.id)}">${escapeHtml(campaign.name)}</option>`).join("");
   elements.campaignSelect.disabled = state.campaigns.length < 2;
   if (state.campaign) {
     elements.campaignSelect.value = state.campaign.id;
     elements.campaignTitle.textContent = state.campaign.name;
+    elements.campaignPeriod.innerHTML = `${escapeHtml(state.campaign.startsOn.replaceAll("-", "/"))}〜${escapeHtml(state.campaign.endsOn.replaceAll("-", "/"))} <span>公式一次情報で確認済み</span>`;
+    elements.campaignArchiveNote.hidden = !isCampaignArchived();
     elements.reportCampaign.value = state.campaign.id;
-    renderPrizeFields(state.campaign.prizeCategories ?? [], state.campaign.prizeItems ?? []);
+    renderPrizeFields(state.campaign.prizeCategories ?? [], state.campaign.prizeItems ?? [], "draw", elements.prizeFields);
+    renderPrizeFields(state.campaign.prizeCategories ?? [], state.campaign.prizeItems ?? [], "guaranteed", elements.guaranteedPrizeFields);
   }
 }
 
@@ -153,10 +181,34 @@ function renderStats() {
     const ratio = stats.completePrizeCount ? `（${(quantity / stats.completePrizeCount * 100).toFixed(1)}%）` : "";
     return `<li>${escapeHtml(prize.name)} <strong>${quantity.toLocaleString("ja-JP")}</strong>個${enoughPrizeData ? ratio : ""}</li>`;
   }).join("")}</ul>`;
+  const coverage = stats.coverage ?? {};
+  elements.coverageSummary.textContent = `投稿のある店舗 ${Number(coverage.reportingStoreCount ?? 0).toLocaleString("ja-JP")} / ${Number(coverage.totalStoreCount ?? state.stores.length).toLocaleString("ja-JP")}店・都道府県 ${Number(coverage.reportingPrefectureCount ?? 0)} / ${Number(coverage.totalPrefectureCount ?? 47)}`;
+}
+
+function renderRecentNational(reports = []) {
+  if (!reports.length) {
+    elements.recentNationalReports.innerHTML = `<p class="section-note section-note-left">最近の投稿はまだありません。</p>`;
+    return;
+  }
+  const now = Date.now();
+  elements.recentNationalReports.innerHTML = reports.map((report) => {
+    const elapsedMinutes = Math.max(0, Math.floor((now - new Date(report.createdAt).getTime()) / 60_000));
+    const timeLabel = elapsedMinutes < 1 ? "たった今" : elapsedMinutes < 60 ? `${elapsedMinutes}分前` : elapsedMinutes < 1_440 ? `${Math.floor(elapsedMinutes / 60)}時間前` : report.visitDate.slice(5).replace("-", "/");
+    return `<button type="button" class="recent-national-card" data-recent-store="${escapeHtml(report.storeId)}"><strong>${escapeHtml(report.storeName)}</strong><span>${escapeHtml(report.prefecture)}・${report.panelDraws + report.mobileDraws}回抽選 / ${report.panelWins + report.mobileWins}回当たり</span><small>${escapeHtml(timeLabel)}</small></button>`;
+  }).join("");
+}
+
+function updatePostingAvailability() {
+  const archived = isCampaignArchived();
+  document.querySelectorAll("[data-open-report]").forEach((button) => {
+    button.disabled = archived;
+    button.title = archived ? "終了したキャンペーンには投稿できません" : "";
+  });
 }
 
 function filteredStores() {
-  return filterStoresByPrefecture(state.stores, elements.prefecture.value, elements.search.value);
+  const filtered = filterStoresByPrefecture(state.stores, elements.prefecture.value, elements.search.value);
+  return sortStores(filtered, elements.storeSort.value, state.userLocation);
 }
 
 function renderStores() {
@@ -181,6 +233,7 @@ function renderStores() {
     const action = `<div class="store-card-actions"><button class="store-open" type="button" data-store-id="${escapeHtml(store.id)}">結果を見る →</button>${stats.reportCount === 0 ? `<button class="store-open store-post" type="button" data-open-report data-store="${escapeHtml(store.id)}">結果を投稿</button>` : ""}</div>`;
     return `<article class="store-card"><h3>${escapeHtml(store.name)}</h3><p class="store-location">${escapeHtml(store.prefecture)} ${escapeHtml(store.city)}</p><div class="store-meta"><span><strong>${Number(stats.reportCount).toLocaleString("ja-JP")}</strong> 投稿</span><span><strong>${Number(stats.totalDraws).toLocaleString("ja-JP")}</strong> 抽選</span></div>${prizeSummary}${action}</article>`;
   }).join("");
+  updatePostingAvailability();
 }
 
 function resetStoreResults() {
@@ -203,16 +256,17 @@ function updateReportStoreOptions(prefecture, selectedStoreId = "") {
   if (selectedStoreId && stores.some((store) => store.id === selectedStoreId)) elements.reportStore.value = selectedStoreId;
 }
 
-function renderPrizeFields(prizes, items) {
-  elements.prizeFields.innerHTML = prizes.map((prize) => {
+function renderPrizeFields(prizes, items, acquisitionType = "draw", container = elements.prizeFields) {
+  container.innerHTML = prizes.map((prize) => {
     const prizeItems = items.filter((item) => item.prizeCategoryId === prize.id);
-    const panelId = `item-breakdown-${prize.id}`;
-    return `<article class="prize-entry" data-prize-category="${escapeHtml(prize.id)}">
-      <label class="field" for="prize-${escapeHtml(prize.id)}"><span>${escapeHtml(prize.name)}</span><span class="quantity-input"><input id="prize-${escapeHtml(prize.id)}" name="prize:${escapeHtml(prize.id)}" type="number" min="0" max="300" inputmode="numeric" value="0" required><small>個</small></span></label>
-      ${prizeItems.length ? `<button class="item-breakdown-toggle" type="button" data-item-toggle="${escapeHtml(prize.id)}" aria-expanded="false" aria-controls="${escapeHtml(panelId)}">内訳も入力する</button>
-      <div id="${escapeHtml(panelId)}" class="item-breakdown-panel" data-item-panel="${escapeHtml(prize.id)}" hidden>
-        <div class="item-input-grid">${prizeItems.map((item) => `<label class="field" for="item-${escapeHtml(item.id)}"><span>${escapeHtml(item.name)}</span><span class="quantity-input"><input id="item-${escapeHtml(item.id)}" name="item:${escapeHtml(prize.id)}:${escapeHtml(item.id)}" type="number" min="0" max="300" inputmode="numeric" value="0"><small>個</small></span></label>`).join("")}</div>
-        <p class="item-breakdown-status" data-item-status="${escapeHtml(prize.id)}" aria-live="polite">カテゴリ個数を入力すると完全性を確認します。</p>
+    const key = `${acquisitionType}:${prize.id}`;
+    const panelId = `item-breakdown-${key}`;
+    return `<article class="prize-entry" data-prize-category="${escapeHtml(key)}">
+      <label class="field" for="prize-${escapeHtml(key)}"><span>${escapeHtml(prize.name)}</span><span class="quantity-input"><input id="prize-${escapeHtml(key)}" name="prize:${escapeHtml(key)}" type="number" min="0" max="300" inputmode="numeric" value="0" required><small>個</small></span></label>
+      ${prizeItems.length ? `<button class="item-breakdown-toggle" type="button" data-item-toggle="${escapeHtml(key)}" aria-expanded="false" aria-controls="${escapeHtml(panelId)}">内訳も入力する</button>
+      <div id="${escapeHtml(panelId)}" class="item-breakdown-panel" data-item-panel="${escapeHtml(key)}" hidden>
+        <div class="item-input-grid">${prizeItems.map((item) => `<label class="field" for="item-${escapeHtml(acquisitionType)}-${escapeHtml(item.id)}"><span>${escapeHtml(item.name)}</span><span class="quantity-input"><input id="item-${escapeHtml(acquisitionType)}-${escapeHtml(item.id)}" name="item:${escapeHtml(key)}:${escapeHtml(item.id)}" type="number" min="0" max="300" inputmode="numeric" value="0"><small>個</small></span></label>`).join("")}</div>
+        <p class="item-breakdown-status" data-item-status="${escapeHtml(key)}" aria-live="polite">カテゴリ個数を入力すると完全性を確認します。</p>
       </div>` : ""}
     </article>`;
   }).join("");
@@ -225,18 +279,24 @@ async function openStore(storeId, trigger) {
   state.lastTrigger = trigger ?? document.activeElement;
   const stats = getStats(store);
   elements.storeDialogTitle.textContent = store.name;
-  elements.storeDialogBody.innerHTML = `<p class="detail-address">${escapeHtml(store.address)}</p><div class="period-tabs" aria-label="集計期間"><button type="button" data-store-period="all" aria-pressed="true">全期間</button><button type="button" data-store-period="7d" aria-pressed="false">直近7日</button></div><p id="detail-period-note" class="section-note section-note-left"></p><div class="detail-stats"><div class="detail-stat"><span>投稿</span><strong id="detail-report-count">${stats.reportCount}</strong>件</div><div class="detail-stat"><span>抽選</span><strong id="detail-draw-count">${stats.totalDraws}</strong>回</div><div class="detail-stat"><span>当たり</span><strong id="detail-win-count">${stats.totalWins}</strong>回</div><div class="detail-stat"><span>景品内訳</span><strong id="detail-prize-count">${stats.completePrizeCount ?? 0}</strong>個</div></div><div class="detail-actions"><button class="button button-primary" type="button" data-open-report data-store="${escapeHtml(store.id)}">この店舗の結果を投稿</button><button class="button button-secondary" type="button" data-share-store>この店舗を共有</button>${store.officialUrl ? `<a class="button button-secondary" href="${escapeHtml(store.officialUrl)}" target="_blank" rel="noreferrer">公式店舗情報</a>` : ""}</div><section class="detail-section"><h3>通常／ビッくらポン！プラス別の結果</h3><p id="detail-rate-note" class="section-note section-note-left"></p><div id="detail-usage" class="usage-breakdown"></div></section><section class="detail-section"><h3>景品カテゴリ</h3><p id="detail-prize-note" class="section-note section-note-left">景品内訳をすべて入力した投稿のみ集計しています。</p><div id="detail-prizes" class="detail-prize-list">${state.campaign?.prizeCategories?.map((prize) => `<div class="recent-report"><p>${escapeHtml(prize.name)} <strong>0個</strong></p></div>`).join("") ?? ""}</div></section><section class="detail-section"><h3>個別景品内訳</h3><p class="section-note section-note-left">個別景品まで入力された投稿のうち、カテゴリ内訳が完全なデータだけを集計します。</p><div id="detail-item-prizes"></div></section><section class="detail-section" aria-labelledby="recent-reports-title"><h3 id="recent-reports-title">みんなの投稿</h3><div id="recent-reports"><p class="section-note section-note-left">投稿データはまだありません。</p></div></section><section class="detail-section external-reference-section" aria-labelledby="external-reports-title"><h3 id="external-reports-title">外部で確認された参考情報</h3><p class="external-reference-notice">X・口コミサイト・ブログ等で一般公開されている情報から確認できた内容です。サイト利用者による直接投稿とは別データで、全国統計やランキングには含めていません。</p><div id="external-reports" aria-live="polite"><p class="section-note section-note-left">外部参考情報を読み込んでいます。</p></div></section>`;
+  elements.storeDialogBody.innerHTML = `<p class="detail-address">${escapeHtml(store.address)}</p><div class="period-tabs" aria-label="集計期間"><button type="button" data-store-period="all" aria-pressed="true">全期間</button><button type="button" data-store-period="7d" aria-pressed="false">直近7日</button></div><p id="detail-period-note" class="section-note section-note-left"></p><div class="detail-stats"><div class="detail-stat"><span>投稿</span><strong id="detail-report-count">${stats.reportCount}</strong>件</div><div class="detail-stat"><span>抽選</span><strong id="detail-draw-count">${stats.totalDraws}</strong>回</div><div class="detail-stat"><span>当たり</span><strong id="detail-win-count">${stats.totalWins}</strong>回</div><div class="detail-stat"><span>抽選景品内訳</span><strong id="detail-prize-count">${stats.completePrizeCount ?? 0}</strong>個</div></div><div class="detail-actions"><button class="button button-primary" type="button" data-open-report data-store="${escapeHtml(store.id)}">この店舗の結果を投稿</button><button class="button button-secondary" type="button" data-share-store>この店舗を共有</button>${store.officialUrl ? `<a class="button button-secondary" href="${escapeHtml(store.officialUrl)}" target="_blank" rel="noreferrer">公式店舗情報</a>` : ""}</div><section class="detail-section"><h3>通常／ビッくらポン！プラス別の結果</h3><p id="detail-rate-note" class="section-note section-note-left"></p><div id="detail-usage" class="usage-breakdown"></div></section><section class="detail-section"><h3>抽選で当たった景品カテゴリ</h3><p id="detail-prize-note" class="section-note section-note-left">抽選景品の内訳をすべて入力した投稿のみ集計しています。</p><div id="detail-prizes" class="detail-prize-list">${state.campaign?.prizeCategories?.map((prize) => `<div class="recent-report"><p>${escapeHtml(prize.name)} <strong>0個</strong></p></div>`).join("") ?? ""}</div></section><section id="detail-guaranteed-section" class="detail-section" hidden><h3>セット商品などでもらった確約景品</h3><p class="section-note section-note-left">抽選結果とは別データです。当選率・抽選景品割合・ランキングには含めていません。</p><div id="detail-guaranteed-prizes" class="detail-prize-list"></div></section><section class="detail-section"><h3>個別景品内訳</h3><p class="section-note section-note-left">抽選で当たった個別景品のうち、カテゴリ内訳が完全なデータだけを集計します。</p><div id="detail-item-prizes"></div></section><section class="detail-section" aria-labelledby="recent-reports-title"><h3 id="recent-reports-title">みんなの投稿</h3><div id="recent-reports"><p class="section-note section-note-left">投稿データはまだありません。</p></div></section><section class="detail-section external-reference-section" aria-labelledby="external-reports-title"><h3 id="external-reports-title">外部で確認された参考情報</h3><p class="external-reference-notice">X・口コミサイト・ブログ等で一般公開されている情報から確認できた内容です。サイト利用者による直接投稿とは別データで、全国統計やランキングには含めていません。</p><div id="external-reports" aria-live="polite"><p class="section-note section-note-left">外部参考情報を読み込んでいます。</p></div></section>`;
   const url = new URL(location.href);
   url.searchParams.set("store", storeId);
+  if (state.campaign) url.searchParams.set("campaign", state.campaign.id);
   history.replaceState({}, "", url);
-  elements.storeDialog.showModal();
-  fetchJson(`/api/stores/${encodeURIComponent(storeId)}/external-reports?limit=10`)
+  if (!elements.storeDialog.open) elements.storeDialog.showModal();
+  updatePostingAvailability();
+  const campaignQuery = `campaign=${encodeURIComponent(state.campaign?.id ?? "")}`;
+  fetchJson(`/api/stores/${encodeURIComponent(storeId)}/external-reports?limit=10&${campaignQuery}`)
     .then((external) => { if (state.selectedStoreId === storeId) renderExternalReports(external.items ?? []); })
-    .catch(() => { if (state.selectedStoreId === storeId) renderExternalReports(null); });
+    .catch((error) => {
+      console.error("外部参考情報の表示に失敗しました。", error);
+      if (state.selectedStoreId === storeId) renderExternalReports(null);
+    });
   try {
-    const detail = await fetchJson(`/api/stores/${encodeURIComponent(storeId)}?period=all`);
+    const detail = await fetchJson(`/api/stores/${encodeURIComponent(storeId)}?period=all&${campaignQuery}`);
     updateStoreDialogStatsV2(detail);
-    const reports = await fetchJson(`/api/stores/${encodeURIComponent(storeId)}/reports?limit=10`);
+    const reports = await fetchJson(`/api/stores/${encodeURIComponent(storeId)}/reports?limit=10&${campaignQuery}`);
     renderRecentReports(reports.items ?? []);
   } catch { /* Static preview keeps the verified local data. */ }
 }
@@ -248,17 +308,18 @@ function renderExternalReports(reports) {
     target.innerHTML = `<p class="section-note section-note-left">外部参考情報を読み込めませんでした。時間をおいて再度お試しください。</p>`;
     return;
   }
-  if (!reports.length) {
+  const publicReports = reports.filter((report) => report.externalUrl);
+  if (!publicReports.length) {
     target.innerHTML = `<p class="section-note section-note-left">この店舗の外部参考情報はありません。</p>`;
     return;
   }
   const precisionLabels = { complete: "内訳確認済み", partial: "一部情報のみ", mention_only: "言及のみ" };
   const usageLabels = { normal: "通常", plus: "ビッくらポン！プラス", unknown: "利用区分不明" };
-  target.innerHTML = reports.map((report) => {
+  target.innerHTML = publicReports.map((report) => {
     const date = report.visitDate ? report.visitDate.replaceAll("-", "/") : report.visitDateLabel || "来店日不明";
     const categories = (report.prizes ?? []).map((prize) => `<li><span>${escapeHtml(prize.name)}</span><strong>${escapeHtml(formatExternalQuantity(prize.quantity, prize.quantityKind))}</strong></li>`).join("");
     const items = (report.items ?? []).map((item) => `<li><span>${escapeHtml(item.prizeCategoryName)}・${escapeHtml(item.name)}</span><strong>${escapeHtml(formatExternalQuantity(item.quantity, item.quantityKind))}</strong></li>`).join("");
-    const sourceLink = report.externalUrl ? `<a class="external-source-link" href="${escapeHtml(report.externalUrl)}" target="_blank" rel="noopener noreferrer">出典を見る<span aria-hidden="true"> ↗</span></a>` : `<span class="external-source-missing">出典URL未登録</span>`;
+    const sourceLink = `<a class="external-source-link" href="${escapeHtml(report.externalUrl)}" target="_blank" rel="noopener noreferrer">出典を見る<span aria-hidden="true"> ↗</span></a>`;
     return `<article class="external-report-card"><header><div><strong>${escapeHtml(report.externalPlatformLabel ?? EXTERNAL_PLATFORM_LABELS[report.externalPlatform] ?? "その他")}</strong><time>${escapeHtml(date)}</time></div><span class="external-precision">${escapeHtml(precisionLabels[report.resultPrecision] ?? "確認できた範囲")}</span></header><dl class="external-summary"><div><dt>景品総数</dt><dd>${escapeHtml(formatExternalQuantity(report.totalPrizes, report.totalPrizesKind))}</dd></div><div><dt>利用区分</dt><dd>${escapeHtml(usageLabels[report.usageType] ?? usageLabels.unknown)}</dd></div></dl>${categories ? `<ul class="external-breakdown">${categories}</ul>` : ""}${items ? `<div class="external-items"><span>確認できた個別景品</span><ul>${items}</ul></div>` : ""}<footer>${sourceLink}</footer></article>`;
   }).join("");
 }
@@ -306,6 +367,13 @@ function updateStoreDialogStatsV2(detail) {
       return `<article class="detail-prize-card"><div><h4>${escapeHtml(prize.name)}</h4><p><strong>${Number(prize.quantity ?? 0).toLocaleString("ja-JP")}</strong>個${enoughPrizeData && prize.share !== null ? `・${(prize.share * 100).toFixed(1)}%` : ""}</p></div>${comparison}</article>`;
     }).join("");
   }
+  const guaranteedSection = document.querySelector("#detail-guaranteed-section");
+  const guaranteedBox = document.querySelector("#detail-guaranteed-prizes");
+  if (guaranteedSection && guaranteedBox) {
+    const guaranteedPrizes = detail.guaranteedPrizes ?? [];
+    guaranteedSection.hidden = guaranteedPrizes.length === 0;
+    guaranteedBox.innerHTML = guaranteedPrizes.map((prize) => `<article class="detail-prize-card"><div><h4>${escapeHtml(prize.name)}</h4><p><strong>${Number(prize.quantity).toLocaleString("ja-JP")}</strong>個</p></div></article>`).join("");
+  }
   const itemBox = document.querySelector("#detail-item-prizes");
   if (itemBox) {
     itemBox.innerHTML = (detail.itemPrizes ?? []).map((category) => {
@@ -323,7 +391,7 @@ async function loadStorePeriod(period) {
   const buttons = elements.storeDialog.querySelectorAll("[data-store-period]");
   buttons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.storePeriod === period)));
   try {
-    const detail = await fetchJson(`/api/stores/${encodeURIComponent(state.selectedStoreId)}?period=${encodeURIComponent(period)}`);
+    const detail = await fetchJson(`/api/stores/${encodeURIComponent(state.selectedStoreId)}?period=${encodeURIComponent(period)}&campaign=${encodeURIComponent(state.campaign?.id ?? "")}`);
     updateStoreDialogStatsV2(detail);
   } catch {
     const note = document.querySelector("#detail-period-note");
@@ -335,13 +403,13 @@ function renderRecentReports(reports) {
   const target = document.querySelector("#recent-reports");
   if (!target) return;
   if (!reports.length) { target.innerHTML = `<p class="section-note section-note-left">投稿データはまだありません。</p>`; return; }
-  target.innerHTML = reports.map((report) => `<article class="recent-report"><p><strong>${escapeHtml(report.visitDate.replaceAll("-", "/"))}</strong>　${escapeHtml({ normal: "通常", plus: "プラス", unknown: "区分不明" }[report.usageType] ?? "区分不明")}</p><p>タッチパネル：${report.panelDraws}回 / ${report.panelWins}当たり</p><p>スマホ注文：${report.mobileDraws}回 / ${report.mobileWins}当たり</p><p>景品内訳：${escapeHtml({ complete: "すべて入力", partial: "一部不明", unknown: "未入力" }[report.prizeBreakdownStatus] ?? "未入力")}</p>${report.prizes?.length ? `<p>景品：${report.prizes.map((prize) => `${escapeHtml(prize.name)} ${prize.quantity}`).join("、")}</p>` : ""}</article>`).join("");
+  target.innerHTML = reports.map((report) => `<article class="recent-report"><p><strong>${escapeHtml(report.visitDate.replaceAll("-", "/"))}</strong>　${escapeHtml({ normal: "通常", plus: "プラス", unknown: "区分不明" }[report.usageType] ?? "区分不明")}</p><p>タッチパネル：${report.panelDraws}回 / ${report.panelWins}当たり</p><p>スマホ注文：${report.mobileDraws}回 / ${report.mobileWins}当たり</p><p>景品内訳：${escapeHtml({ complete: "すべて入力", partial: "一部不明", unknown: "未入力" }[report.prizeBreakdownStatus] ?? "未入力")}</p>${report.prizes?.length ? `<p>抽選景品：${report.prizes.map((prize) => `${escapeHtml(prize.name)} ${prize.quantity}`).join("、")}</p>` : ""}${report.guaranteedPrizes?.length ? `<p>確約景品：${report.guaranteedPrizes.map((prize) => `${escapeHtml(prize.name)} ${prize.quantity}`).join("、")}</p>` : ""}</article>`).join("");
 }
 
-function updateItemBreakdownStatus(categoryId) {
-  const panel = elements.prizeFields.querySelector(`[data-item-panel="${CSS.escape(categoryId)}"]`);
-  const status = elements.prizeFields.querySelector(`[data-item-status="${CSS.escape(categoryId)}"]`);
-  const categoryInput = elements.prizeFields.querySelector(`[name="prize:${CSS.escape(categoryId)}"]`);
+function updateItemBreakdownStatus(categoryKey) {
+  const panel = elements.reportForm.querySelector(`[data-item-panel="${CSS.escape(categoryKey)}"]`);
+  const status = elements.reportForm.querySelector(`[data-item-status="${CSS.escape(categoryKey)}"]`);
+  const categoryInput = elements.reportForm.querySelector(`[name="prize:${CSS.escape(categoryKey)}"]`);
   if (!panel || !status || !categoryInput) return;
   const categoryQuantity = Number(categoryInput.value || 0);
   const itemTotal = [...panel.querySelectorAll('input[name^="item:"]')].reduce((sum, input) => sum + Number(input.value || 0), 0);
@@ -360,25 +428,25 @@ function updateItemBreakdownStatus(categoryId) {
   }
 }
 
-function toggleItemBreakdown(categoryId, button) {
-  const panel = elements.prizeFields.querySelector(`[data-item-panel="${CSS.escape(categoryId)}"]`);
+function toggleItemBreakdown(categoryKey, button) {
+  const panel = elements.reportForm.querySelector(`[data-item-panel="${CSS.escape(categoryKey)}"]`);
   if (!panel) return;
   const expanding = panel.hidden;
   panel.hidden = !expanding;
   panel.dataset.enabled = "true";
   button.setAttribute("aria-expanded", String(expanding));
   button.textContent = expanding ? "内訳を閉じる" : "内訳も入力する";
-  updateItemBreakdownStatus(categoryId);
+  updateItemBreakdownStatus(categoryKey);
   if (expanding) panel.querySelector("input")?.focus();
 }
 
 function resetItemBreakdowns() {
-  elements.prizeFields.querySelectorAll("[data-item-panel]").forEach((panel) => {
+  elements.reportForm.querySelectorAll("[data-item-panel]").forEach((panel) => {
     panel.hidden = true;
     delete panel.dataset.enabled;
     panel.dataset.status = "unknown";
   });
-  elements.prizeFields.querySelectorAll("[data-item-toggle]").forEach((button) => {
+  elements.reportForm.querySelectorAll("[data-item-toggle]").forEach((button) => {
     button.setAttribute("aria-expanded", "false");
     button.textContent = "内訳も入力する";
   });
@@ -402,6 +470,20 @@ async function loadRanking() {
   }
 }
 
+async function loadPrefectureStats() {
+  if (state.prefecturesLoaded || !state.campaign) return;
+  state.prefecturesLoaded = true;
+  elements.prefectureStatsStatus.textContent = "都道府県別集計を読み込んでいます。";
+  try {
+    const result = await fetchJson(`/api/stats/prefectures?campaign=${encodeURIComponent(state.campaign.id)}`);
+    elements.prefectureStatsStatus.textContent = result.items?.length ? `${result.items.length}都道府県に投稿があります。` : "投稿のある都道府県はまだありません。";
+    elements.prefectureStatsList.innerHTML = (result.items ?? []).map((item) => `<article><h3>${escapeHtml(item.prefecture)}</h3><dl><div><dt>投稿</dt><dd>${item.reportCount}件</dd></div><div><dt>店舗</dt><dd>${item.reportingStoreCount}店</dd></div><div><dt>抽選</dt><dd>${item.totalDraws}回</dd></div><div><dt>当たり</dt><dd>${item.totalWins}回</dd></div></dl></article>`).join("");
+  } catch {
+    state.prefecturesLoaded = false;
+    elements.prefectureStatsStatus.textContent = "都道府県別集計を読み込めませんでした。";
+  }
+}
+
 function selectResultView(view, focusTab = false) {
   if (!elements.resultViewTabs.some((tab) => tab.dataset.viewTab === view)) return;
   state.resultView = view;
@@ -415,6 +497,7 @@ function selectResultView(view, focusTab = false) {
     panel.hidden = panel.dataset.viewPanel !== view;
   });
   if (view === "ranking") loadRanking();
+  if (view === "prefectures") loadPrefectureStats();
 }
 
 function handleResultViewKeydown(event) {
@@ -436,6 +519,10 @@ function closeStore() {
 }
 
 function openReport(storeId, trigger) {
+  if (isCampaignArchived()) {
+    alert("終了したキャンペーンには投稿できません。過去データは引き続き閲覧できます。");
+    return;
+  }
   if (elements.storeDialog.open) elements.storeDialog.close();
   state.lastTrigger = trigger ?? document.activeElement;
   const selectedStoreId = storeId ?? state.selectedStoreId ?? "";
@@ -452,6 +539,53 @@ function openReport(storeId, trigger) {
 }
 
 function closeReport() { elements.reportDialog.close(); state.lastTrigger?.focus?.(); }
+
+function renderMyReports(reports) {
+  if (!reports.length) {
+    elements.myReportsBody.innerHTML = `<p class="section-note section-note-left">ログイン後に投稿したデータはまだありません。</p>`;
+    return;
+  }
+  const statusLabels = { active: "公開中", pending: "確認中", hidden: "非表示", withdrawn: "取り下げ済み" };
+  elements.myReportsBody.innerHTML = `<div class="my-reports-list">${reports.map((report) => {
+    const drawPrizes = report.prizes.filter((prize) => prize.acquisitionType === "draw");
+    const guaranteedPrizes = report.prizes.filter((prize) => prize.acquisitionType === "guaranteed");
+    const action = report.status === "withdrawn"
+      ? (report.moderationStatus === "active" ? `<button class="button button-secondary" type="button" data-restore-report="${escapeHtml(report.id)}">取り下げを解除</button>` : "")
+      : `<button class="button button-secondary" type="button" data-withdraw-report="${escapeHtml(report.id)}">投稿を取り下げる</button>`;
+    return `<article class="my-report-card"><header><div><strong>${escapeHtml(report.storeName)}</strong><time>${escapeHtml(report.visitDate.replaceAll("-", "/"))}</time></div><span>${escapeHtml(statusLabels[report.status] ?? report.status)}</span></header><p>抽選 ${report.panelDraws + report.mobileDraws}回 / 当たり ${report.panelWins + report.mobileWins}回</p>${drawPrizes.length ? `<p>抽選景品：${drawPrizes.map((prize) => `${escapeHtml(prize.name)} ${prize.quantity}個`).join("、")}</p>` : ""}${guaranteedPrizes.length ? `<p>確約景品：${guaranteedPrizes.map((prize) => `${escapeHtml(prize.name)} ${prize.quantity}個`).join("、")}</p>` : ""}<footer>${action}</footer></article>`;
+  }).join("")}</div>`;
+}
+
+async function loadMyReports() {
+  elements.myReportsBody.innerHTML = `<p>投稿を読み込んでいます。</p>`;
+  try {
+    const response = await fetch("/api/me/reports?limit=50", { headers: { Accept: "application/json", ...await authHeaders() }, cache: "no-store" });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error ?? "自分の投稿を読み込めませんでした。");
+    renderMyReports(result.items ?? []);
+  } catch (error) {
+    elements.myReportsBody.innerHTML = `<p class="form-errors">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+async function openMyReports(trigger) {
+  state.lastTrigger = trigger ?? document.activeElement;
+  elements.myReportsDialog.showModal();
+  await loadMyReports();
+}
+
+function closeMyReports() {
+  elements.myReportsDialog.close();
+  state.lastTrigger?.focus?.();
+}
+
+async function changeOwnReport(reportId, action) {
+  if (action === "withdraw" && !confirm("この投稿を取り下げますか？データは削除せず、集計と公開表示から除外します。")) return;
+  const response = await fetch(`/api/me/reports/${encodeURIComponent(reportId)}/${action}`, { method: "POST", headers: { Accept: "application/json", ...await authHeaders() } });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error ?? "投稿状態を更新できませんでした。");
+  await Promise.all([loadMyReports(), activateCampaign(state.campaign.id, { updateUrl: false })]);
+}
 
 function validateForm(payload) {
   return validateReportPayload(payload, {
@@ -490,18 +624,22 @@ async function ensureTurnstile() {
 
 function formPayload() {
   const data = new FormData(elements.reportForm);
-  const itemBreakdowns = [...elements.prizeFields.querySelectorAll("[data-item-panel]")].filter((panel) => panel.dataset.enabled === "true").map((panel) => {
-    const prizeCategoryId = panel.dataset.itemPanel;
-    const categoryQuantity = Number(data.get(`prize:${prizeCategoryId}`) ?? 0);
+  const itemBreakdowns = [...elements.reportForm.querySelectorAll("[data-item-panel]")].filter((panel) => panel.dataset.enabled === "true").map((panel) => {
+    const [acquisitionType, prizeCategoryId] = panel.dataset.itemPanel.split(":");
+    if (acquisitionType === "guaranteed" && !elements.guaranteedToggle.checked) return null;
+    const categoryQuantity = Number(data.get(`prize:${acquisitionType}:${prizeCategoryId}`) ?? 0);
     const items = [...panel.querySelectorAll('input[name^="item:"]')].map((input) => ({ prizeItemId: input.name.split(":").at(-1), quantity: Number(input.value || 0) })).filter((item) => item.quantity > 0);
     const itemTotal = items.reduce((sum, item) => sum + item.quantity, 0);
-    return { prizeCategoryId, status: categoryQuantity > 0 && itemTotal === categoryQuantity ? "complete" : "partial", items };
-  }).filter((breakdown) => Number(data.get(`prize:${breakdown.prizeCategoryId}`) ?? 0) > 0);
+    return { acquisitionType, prizeCategoryId, status: categoryQuantity > 0 && itemTotal === categoryQuantity ? "complete" : "partial", items };
+  }).filter((breakdown) => breakdown && Number(data.get(`prize:${breakdown.acquisitionType}:${breakdown.prizeCategoryId}`) ?? 0) > 0);
   return {
     storeId: data.get("storeId"), campaignId: data.get("campaignId"), visitDate: data.get("visitDate"), usageType: data.get("usageType"),
     prizeBreakdownStatus: data.get("prizeBreakdownStatus"),
     panelDraws: Number(data.get("panelDraws")), panelWins: Number(data.get("panelWins")), mobileDraws: Number(data.get("mobileDraws")), mobileWins: Number(data.get("mobileWins")), unknownPrizeCount: Number(data.get("unknownPrizeCount")),
-    prizes: [...data.entries()].filter(([key]) => key.startsWith("prize:")).map(([key, value]) => ({ prizeCategoryId: key.slice(6), quantity: Number(value) })).filter((item) => item.quantity > 0),
+    prizes: [...data.entries()].filter(([key]) => key.startsWith("prize:")).map(([key, value]) => {
+      const [, acquisitionType, prizeCategoryId] = key.split(":");
+      return { acquisitionType, prizeCategoryId, quantity: Number(value) };
+    }).filter((item) => item.quantity > 0 && (item.acquisitionType !== "guaranteed" || elements.guaranteedToggle.checked)),
     itemBreakdowns,
     turnstileToken: data.get("cf-turnstile-response") ?? "",
   };
@@ -525,6 +663,7 @@ async function submitReport(event) {
       : "投稿ありがとうございました。集計への反映には少し時間がかかる場合があります。";
     if (result.posting) elements.postingStatus.textContent = `本日はあと${result.posting.remainingToday}件投稿できます。`;
     elements.reportForm.reset();
+    elements.guaranteedPrizeFields.hidden = true;
     elements.reportCampaign.value = state.campaign?.id ?? "";
     updateReportStoreOptions("");
     resetItemBreakdowns();
@@ -536,9 +675,70 @@ async function submitReport(event) {
 
 async function shareStore() {
   const store = state.stores.find((item) => item.id === state.selectedStoreId);
-  const url = new URL(location.href); url.searchParams.set("store", state.selectedStoreId);
+  const url = new URL(location.href); url.searchParams.set("store", state.selectedStoreId); if (state.campaign) url.searchParams.set("campaign", state.campaign.id);
   const shareData = { title: `${store.name}｜ビッくらポン！みんなの結果共有`, text: `${store.name}の利用者投稿データ`, url: url.toString() };
   try { if (navigator.share) await navigator.share(shareData); else { await navigator.clipboard.writeText(shareData.url); alert("共有URLをコピーしました。"); } } catch (error) { if (error.name !== "AbortError") alert("共有URLをコピーできませんでした。"); }
+}
+
+function useCurrentLocation() {
+  if (!navigator.geolocation) {
+    elements.locationStatus.textContent = "このブラウザでは現在地を利用できません。";
+    return;
+  }
+  elements.useLocation.disabled = true;
+  elements.locationStatus.textContent = "現在地を確認しています。";
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      state.userLocation = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+      elements.storeSort.value = "nearest";
+      elements.locationStatus.textContent = "現在地はこの端末内の並び替えだけに使用します。";
+      elements.useLocation.disabled = false;
+      resetStoreResults();
+    },
+    () => {
+      elements.locationStatus.textContent = "現在地を取得できませんでした。ブラウザの許可設定をご確認ください。";
+      elements.useLocation.disabled = false;
+      if (elements.storeSort.value === "nearest") elements.storeSort.value = "default";
+      resetStoreResults();
+    },
+    { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
+  );
+}
+
+async function activateCampaign(campaignId, options = {}) {
+  const campaign = state.campaigns.find((item) => item.id === campaignId) ?? state.campaigns[0] ?? null;
+  if (!campaign) return;
+  state.campaign = campaign;
+  const query = `campaign=${encodeURIComponent(campaign.id)}`;
+  const [stats, recent] = await Promise.all([
+    fetchJson(`/api/stats?${query}`).catch(() => null),
+    fetchJson(`/api/recent-reports?${query}&limit=10`).catch(() => ({ items: [] })),
+  ]);
+  const sparseStats = new Map((stats?.stores ?? []).map((entry) => [entry.storeId, entry]));
+  state.stores = state.stores.map((store) => ({
+    ...store,
+    stats: sparseStats.get(store.id) ?? { reportCount: 0, totalDraws: 0, totalWins: 0, totalPrizeCount: 0, completeReportCount: 0, completePrizeCount: 0, prizes: [], latestReportAt: null },
+  }));
+  state.stats = stats ?? { reportCount: 0, totalDraws: 0, totalWins: 0, totalPrizeCount: 0, completeReportCount: 0, completePrizeCount: 0, prizes: campaign.prizeCategories?.map((prize) => ({ id: prize.id, name: prize.name, quantity: 0 })) ?? [], usage: [], stores: [], coverage: { reportingStoreCount: 0, totalStoreCount: state.stores.length, reportingPrefectureCount: 0, totalPrefectureCount: 47 } };
+  state.rankingLoaded = false;
+  state.prefecturesLoaded = false;
+  elements.rankingList.innerHTML = "";
+  elements.rankingStatus.textContent = "ランキングタブを開くと読み込みます。";
+  elements.prefectureStatsList.innerHTML = "";
+  elements.prefectureStatsStatus.textContent = "このタブを開くと読み込みます。";
+  renderCampaigns();
+  renderStats();
+  renderRecentNational(recent.items ?? []);
+  resetStoreResults();
+  updatePostingAvailability();
+  if (options.updateUrl !== false) {
+    const url = new URL(location.href);
+    url.searchParams.set("campaign", campaign.id);
+    history.replaceState({}, "", url);
+  }
+  if (state.resultView === "ranking") loadRanking();
+  if (state.resultView === "prefectures") loadPrefectureStats();
+  if (elements.storeDialog.open && state.selectedStoreId) openStore(state.selectedStoreId, state.lastTrigger);
 }
 
 function bindEvents() {
@@ -548,23 +748,37 @@ function bindEvents() {
   });
   elements.search.addEventListener("input", resetStoreResults);
   elements.prefecture.addEventListener("change", resetStoreResults);
+  elements.storeSort.addEventListener("change", () => {
+    if (elements.storeSort.value === "nearest" && !state.userLocation) useCurrentLocation();
+    else resetStoreResults();
+  });
+  elements.useLocation.addEventListener("click", useCurrentLocation);
+  elements.campaignSelect.addEventListener("change", () => activateCampaign(elements.campaignSelect.value));
   elements.searchClear.addEventListener("click", () => { elements.search.value = ""; elements.search.focus(); resetStoreResults(); });
   elements.storeLoadMore.addEventListener("click", () => { state.visibleStoreCount += STORE_RENDER_BATCH_SIZE; renderStores(); });
   elements.storeList.addEventListener("click", (event) => { const button = event.target.closest("[data-store-id]"); if (button) openStore(button.dataset.storeId, button); });
   elements.reportPrefecture.addEventListener("change", () => updateReportStoreOptions(elements.reportPrefecture.value));
-  elements.prizeFields.addEventListener("click", (event) => {
+  elements.reportForm.addEventListener("click", (event) => {
     const button = event.target.closest("[data-item-toggle]");
     if (button) toggleItemBreakdown(button.dataset.itemToggle, button);
   });
-  elements.prizeFields.addEventListener("input", (event) => {
+  elements.reportForm.addEventListener("input", (event) => {
     const category = event.target.closest("[data-prize-category]")?.dataset.prizeCategory;
     if (category) updateItemBreakdownStatus(category);
+  });
+  elements.guaranteedToggle.addEventListener("change", () => {
+    elements.guaranteedPrizeFields.hidden = !elements.guaranteedToggle.checked;
+    if (!elements.guaranteedToggle.checked) {
+      elements.guaranteedPrizeFields.querySelectorAll("input").forEach((input) => { input.value = "0"; });
+      resetItemBreakdowns();
+    }
   });
   document.addEventListener("click", (event) => {
     const reportButton = event.target.closest("[data-open-report]");
     if (reportButton) openReport(reportButton.dataset.store, reportButton);
     if (event.target.closest("[data-close-dialog]")) closeStore();
     if (event.target.closest("[data-close-report]")) closeReport();
+    if (event.target.closest("[data-close-my-reports]")) closeMyReports();
     if (event.target.closest("[data-share-store]")) shareStore();
     const itemToggle = event.target.closest("[data-detail-item-toggle]");
     if (itemToggle) {
@@ -577,15 +791,23 @@ function bindEvents() {
     if (rankingStore) openStore(rankingStore.dataset.rankingStore, rankingStore);
     const periodButton = event.target.closest("[data-store-period]");
     if (periodButton) loadStorePeriod(periodButton.dataset.storePeriod);
+    const recentStore = event.target.closest("[data-recent-store]");
+    if (recentStore) openStore(recentStore.dataset.recentStore, recentStore);
+    const withdrawButton = event.target.closest("[data-withdraw-report]");
+    if (withdrawButton) changeOwnReport(withdrawButton.dataset.withdrawReport, "withdraw").catch((error) => alert(error.message));
+    const restoreButton = event.target.closest("[data-restore-report]");
+    if (restoreButton) changeOwnReport(restoreButton.dataset.restoreReport, "restore").catch((error) => alert(error.message));
   });
   elements.storeDialog.addEventListener("cancel", (event) => { event.preventDefault(); closeStore(); });
   elements.reportDialog.addEventListener("cancel", (event) => { event.preventDefault(); closeReport(); });
+  elements.myReportsDialog.addEventListener("cancel", (event) => { event.preventDefault(); closeMyReports(); });
   elements.reportForm.addEventListener("submit", submitReport);
   elements.loginButton.addEventListener("click", async () => {
     elements.loginButton.disabled = true;
     try { await signIn(); } catch (error) { elements.authStatus.textContent = error.message; }
     finally { elements.loginButton.disabled = false; }
   });
+  elements.myReportsButton.addEventListener("click", () => openMyReports(elements.myReportsButton));
   elements.logoutButton.addEventListener("click", async () => {
     elements.logoutButton.disabled = true;
     try { await signOut(); } catch (error) { elements.authStatus.textContent = error.message; }
@@ -595,16 +817,14 @@ function bindEvents() {
 
 async function loadData() {
   try {
-    const [campaignData, storeData, stats] = await Promise.all([
-      fetchJson("/api/campaigns", "/data/campaigns.json"), loadStoreMaster(), fetchJson("/api/stats", null).catch(() => null),
+    const [campaignData, storeData] = await Promise.all([
+      fetchJson("/api/campaigns", "/data/campaigns.json"), loadStoreMaster(),
     ]);
     state.campaigns = campaignData.items ?? campaignData;
-    state.campaign = state.campaigns[0] ?? null;
-    const sparseStats = new Map((stats?.stores ?? []).map((entry) => [entry.storeId, entry]));
-    state.stores = (storeData.items ?? storeData).map((store) => ({ ...store, stats: sparseStats.get(store.id) ?? getStats(store) }));
-    state.stats = stats ?? { reportCount: 0, totalDraws: 0, totalWins: 0, totalPrizeCount: 0, completeReportCount: 0, completePrizeCount: 0, prizes: state.campaign?.prizeCategories?.map((prize) => ({ name: prize.name, quantity: 0 })) ?? [], usage: [], stores: [] };
-    renderCampaigns(); renderStats(); populateStoreControls(); renderStores();
-    if (state.resultView === "ranking") loadRanking();
+    state.stores = (storeData.items ?? storeData).map((store) => ({ ...store }));
+    populateStoreControls();
+    const requestedCampaign = new URLSearchParams(location.search).get("campaign");
+    await activateCampaign(requestedCampaign, { updateUrl: true });
     const sharedStore = new URLSearchParams(location.search).get("store");
     if (sharedStore) requestAnimationFrame(() => openStore(sharedStore, document.querySelector(`[data-store-id="${CSS.escape(sharedStore)}"]`)));
   } catch { elements.storeStatus.textContent = "店舗データを読み込めませんでした。時間をおいて再度お試しください。"; elements.storeList.innerHTML = ""; renderStats(); }
