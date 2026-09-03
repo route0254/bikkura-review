@@ -1,7 +1,8 @@
 const VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 export async function verifyTurnstile(token, secret, remoteIp) {
-  if (!token || !secret) return { success: false, errorCodes: ["missing-input"] };
+  if (!token) return { success: false, errorCodes: ["missing-input-response"] };
+  if (!secret) return { success: false, errorCodes: ["missing-input-secret"] };
   const body = new FormData();
   body.set("secret", secret);
   body.set("response", token);
@@ -10,7 +11,12 @@ export async function verifyTurnstile(token, secret, remoteIp) {
     const response = await fetch(VERIFY_URL, { method: "POST", body });
     if (!response.ok) return { success: false, errorCodes: ["verification-unavailable"] };
     const result = await response.json();
-    return { success: Boolean(result.success), errorCodes: result["error-codes"] ?? [] };
+    return {
+      success: Boolean(result.success),
+      errorCodes: result["error-codes"] ?? [],
+      action: result.action ?? null,
+      hostname: result.hostname ?? null,
+    };
   } catch {
     return { success: false, errorCodes: ["verification-unavailable"] };
   }

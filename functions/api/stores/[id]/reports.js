@@ -8,7 +8,12 @@ export async function onRequestGet({ request, env, params }) {
     if (!campaign) return apiError("キャンペーンが見つかりません。", 404);
     const limit = boundedLimit(url.searchParams.get("limit"), 10, 50);
     const reports = (await env.DB.prepare(`
-      SELECT id, visit_date, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins, unknown_prize_count, prize_breakdown_status, created_at
+      SELECT id, visit_date, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
+        unknown_prize_count, prize_breakdown_status, prize_input_mode,
+        CASE WHEN prize_input_mode = 'total' THEN guaranteed_prize_count
+          ELSE COALESCE((SELECT SUM(quantity) FROM report_guaranteed_prizes WHERE report_id = active_user_reports.id), 0)
+        END AS guaranteed_prize_count,
+        created_at
       FROM active_user_reports
       WHERE store_id = ? AND campaign_id = ?
       ORDER BY created_at DESC, id DESC LIMIT ?
@@ -17,12 +22,11 @@ export async function onRequestGet({ request, env, params }) {
     if (reports.length) {
       const placeholders = reports.map(() => "?").join(",");
       prizes = (await env.DB.prepare(`
-        SELECT acquisition.report_id, acquisition.acquisition_type,
-          acquisition.quantity, pc.id, pc.name
-        FROM report_prize_acquisitions acquisition
-        JOIN prize_categories pc ON pc.id = acquisition.prize_category_id
-        WHERE acquisition.report_id IN (${placeholders}) AND acquisition.quantity > 0
-        ORDER BY acquisition.acquisition_type, pc.sort_order, pc.id
+        SELECT observed.report_id, observed.quantity, pc.id, pc.name
+        FROM report_observed_prizes observed
+        JOIN prize_categories pc ON pc.id = observed.prize_category_id
+        WHERE observed.report_id IN (${placeholders}) AND observed.quantity > 0
+        ORDER BY pc.sort_order, pc.id
       `).bind(...reports.map((report) => report.id)).all()).results;
     }
     return json({ items: reports.map((report) => ({
@@ -35,8 +39,10 @@ export async function onRequestGet({ request, env, params }) {
       mobileWins: report.mobile_wins,
       unknownPrizeCount: report.unknown_prize_count,
       prizeBreakdownStatus: report.prize_breakdown_status,
-      prizes: prizes.filter((prize) => prize.report_id === report.id && prize.acquisition_type === "draw").map((prize) => ({ id: prize.id, name: prize.name, quantity: Number(prize.quantity), acquisitionType: "draw" })),
-      guaranteedPrizes: prizes.filter((prize) => prize.report_id === report.id && prize.acquisition_type === "guaranteed").map((prize) => ({ id: prize.id, name: prize.name, quantity: Number(prize.quantity), acquisitionType: "guaranteed" })),
+      guaranteedPrizeCount: Number(report.guaranteed_prize_count),
+      prizeInputMode: report.prize_input_mode,
+      prizes: prizes.filter((prize) => prize.report_id === report.id).map((prize) => ({ id: prize.id, name: prize.name, quantity: Number(prize.quantity), acquisitionType: "total" })),
+      guaranteedPrizes: [],
     })) }, { headers: cacheHeaders(30) });
   } catch (error) { return unavailable(error); }
 }

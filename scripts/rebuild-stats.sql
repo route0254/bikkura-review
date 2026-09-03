@@ -14,7 +14,10 @@ SELECT
   COALESCE(SUM(reports.panel_wins), 0),
   COALESCE(SUM(reports.mobile_draws), 0),
   COALESCE(SUM(reports.mobile_wins), 0),
-  COALESCE(SUM(COALESCE((SELECT SUM(report_prizes.quantity) FROM report_prizes WHERE report_prizes.report_id = reports.id), 0) + COALESCE(reports.unknown_prize_count, 0)), 0),
+  COALESCE(SUM(CASE
+    WHEN reports.prize_input_mode = 'total' THEN reports.panel_wins + reports.mobile_wins
+    ELSE COALESCE((SELECT SUM(report_prizes.quantity) FROM report_prizes WHERE report_prizes.report_id = reports.id), 0) + COALESCE(reports.unknown_prize_count, 0)
+  END), 0),
   COALESCE(SUM(reports.unknown_prize_count), 0),
   datetime('now')
 FROM stores
@@ -40,10 +43,18 @@ FROM active_user_reports reports
 GROUP BY reports.store_id, reports.campaign_id, reports.usage_type;
 
 INSERT INTO store_campaign_prize_stats (store_id, campaign_id, prize_category_id, reported_quantity, updated_at)
-SELECT reports.store_id, reports.campaign_id, report_prizes.prize_category_id, SUM(report_prizes.quantity), datetime('now')
-FROM active_user_reports reports
-JOIN report_prizes ON report_prizes.report_id = reports.id
-WHERE reports.prize_breakdown_status = 'complete'
-GROUP BY reports.store_id, reports.campaign_id, report_prizes.prize_category_id;
+SELECT eligible.store_id, eligible.campaign_id, eligible.prize_category_id, SUM(eligible.quantity), datetime('now')
+FROM (
+  SELECT reports.store_id, reports.campaign_id, prizes.prize_category_id, prizes.quantity
+  FROM active_draw_prize_reports reports
+  JOIN report_prizes prizes ON prizes.report_id = reports.id
+  WHERE reports.prize_input_mode = 'by_acquisition'
+  UNION ALL
+  SELECT reports.store_id, reports.campaign_id, prizes.prize_category_id, prizes.quantity
+  FROM active_draw_prize_reports reports
+  JOIN report_total_prizes prizes ON prizes.report_id = reports.id
+  WHERE reports.prize_input_mode = 'total'
+) eligible
+GROUP BY eligible.store_id, eligible.campaign_id, eligible.prize_category_id;
 
 PRAGMA optimize;

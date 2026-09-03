@@ -32,4 +32,13 @@ SELECT COUNT(*) AS reports FROM reports;
 SELECT COUNT(*) AS report_prizes FROM report_prizes;
 ```
 
+## 合計入力（0007以降）
+
+- 新しい投稿フォームでは、パネル・スマホ注文・確定セット等でもらった景品を取得経路で分けず、`report_total_prizes` / `report_total_item_breakdowns` / `report_total_items` に合計で保存します。
+- 確定セット等の個数は `reports.guaranteed_prize_count` に保存します。抽選回数と当たり回数にはパネル・スマホ注文だけを使います。
+- `report_observed_prizes` / `report_observed_items` は、新しい合計入力と従来の取得経路別入力を表示用に統合する読み取り専用VIEWです。
+- 合計入力に確定セット等が1個以上含まれる場合、抽選分との配分を推測せず、カテゴリ割合・個別景品・フィギュア報告割合ランキングから除外します。抽選回数と当たり回数は通常どおり集計します。
+- 確定セット等が0個で景品内訳が完全な合計入力だけを、`active_draw_prize_reports` / `active_draw_*` 経由で抽選景品統計へ含めます。
+- `0007_total_prize_input.sql` は既存の `reports` と `report_prizes` を削除・再作成せず、既存行を既定値 `prize_input_mode = 'by_acquisition'` として後方互換で扱います。
+
 適用後に件数が同一であること、`report_guaranteed_*` と `report_withdrawals` が空で既存画面・APIが従来どおり動くことを確認します。

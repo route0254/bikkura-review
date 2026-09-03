@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   await page.route("https://challenges.cloudflare.com/**", (route) => route.fulfill({
     status: 200,
     contentType: "application/javascript",
-    body: "window.turnstile={render(){return 1},reset(){}};",
+    body: "window.turnstile={render(element,options){this.options=options;queueMicrotask(()=>options.callback?.('test-token'));return 1},reset(){queueMicrotask(()=>this.options?.callback?.('test-token'))},getResponse(){return 'test-token'}};",
   }));
   await page.addInitScript(() => {
     window.__BIKKURA_AUTH_MOCK__ = {
@@ -113,14 +113,14 @@ test("投稿フォームで都道府県から店舗を絞り込み、個別景�
   await expect(storeSelect.locator('option[value="kura-664"]')).toHaveText("新宿靖国通り店");
   await expect(storeSelect.locator('option[value="kura-547"]')).toHaveCount(0);
 
-  await page.locator("#prize-draw\\:chiikawa-2026-figure").fill("2");
-  const toggle = page.locator('[data-item-toggle="draw:chiikawa-2026-figure"]');
+  await page.locator("#prize-total\\:chiikawa-2026-figure").fill("2");
+  const toggle = page.locator('[data-item-toggle="total:chiikawa-2026-figure"]');
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
-  await page.locator("#item-draw-chiikawa-2026-figure-chiikawa").fill("1");
-  await expect(page.locator('[data-item-status="draw:chiikawa-2026-figure"]')).toContainText("一部入力");
-  await page.locator("#item-draw-chiikawa-2026-figure-hachiware").fill("1");
-  await expect(page.locator('[data-item-status="draw:chiikawa-2026-figure"]')).toContainText("すべて入力");
+  await page.locator("#item-total-chiikawa-2026-figure-chiikawa").fill("1");
+  await expect(page.locator('[data-item-status="total:chiikawa-2026-figure"]')).toContainText("一部入力");
+  await page.locator("#item-total-chiikawa-2026-figure-hachiware").fill("1");
+  await expect(page.locator('[data-item-status="total:chiikawa-2026-figure"]')).toContainText("すべて入力");
 });
 
 test("店舗詳細でカテゴリ割合・全国比較・個別景品割合とデータ不足を表示する", async ({ page }) => {
@@ -333,16 +333,40 @@ test("BAN中は投稿できない理由を表示する", async ({ page }) => {
   await expect(page.locator("#posting-status")).toHaveText("このアカウントからは現在投稿できません。");
 });
 
-test("確約景品入力を抽選景品と分けて開閉できる", async ({ page }) => {
+test("確定セット等をパネル・スマホと同列で入力し、景品内訳は合計だけ入力する", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
-  const guaranteed = page.locator("#guaranteed-prize-fields");
-  await expect(guaranteed).toBeHidden();
-  await page.getByLabel("確約景品も入力する").check();
-  await expect(guaranteed).toBeVisible();
-  await expect(guaranteed.getByRole("spinbutton")).toHaveCount(3);
-  await page.getByLabel("確約景品も入力する").uncheck();
-  await expect(guaranteed).toBeHidden();
+  await expect(page.getByRole("group", { name: "タッチパネル" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "スマホ注文" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "ビッくらポン！確定のセット等" })).toBeVisible();
+  await page.getByLabel("抽選なしでもらった景品数").fill("2");
+  await expect(page.getByRole("group", { name: "今回もらった景品の合計" }).getByRole("spinbutton")).toHaveCount(4);
+});
+
+test("投稿時に合計景品を送信し、Turnstile失敗時は確認を更新する", async ({ page }) => {
+  let submitted;
+  await page.route("**/api/reports", async (route) => {
+    submitted = route.request().postDataJSON();
+    await route.fulfill({
+      status: 403,
+      contentType: "application/json",
+      body: JSON.stringify({ code: "turnstile_failed", error: "投稿確認を更新したので、もう一度投稿してください。" }),
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await page.getByLabel("都道府県 必須").selectOption("東京都");
+  await page.getByLabel("店舗 必須").selectOption("kura-664");
+  await page.locator("#panel-draws").fill("1");
+  await page.locator("#panel-wins").fill("1");
+  await page.getByLabel("抽選なしでもらった景品数").fill("1");
+  await page.getByLabel("景品の内訳をすべて入力できていますか？ 必須").selectOption("complete");
+  await page.locator("#prize-total\\:chiikawa-2026-figure").fill("2");
+  await page.getByRole("button", { name: "この内容で投稿" }).click();
+  await expect(page.getByRole("alert")).toContainText("投稿確認を更新");
+  expect(submitted.prizeInputMode).toBe("total");
+  expect(submitted.guaranteedPrizeCount).toBe(1);
+  expect(submitted.prizes).toEqual([{ acquisitionType: "total", prizeCategoryId: "chiikawa-2026-figure", quantity: 2 }]);
 });
 
 test("都道府県別集計をタブで遅延取得する", async ({ page }) => {

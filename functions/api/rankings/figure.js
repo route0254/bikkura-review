@@ -22,8 +22,8 @@ export async function onRequestGet({ request, env }) {
       JOIN stores ON stores.id = stats.store_id AND stores.active = 1
       JOIN (
         SELECT store_id, COUNT(*) AS complete_report_count
-        FROM active_user_reports
-        WHERE campaign_id = ? AND prize_breakdown_status = 'complete'
+        FROM active_draw_prize_reports
+        WHERE campaign_id = ?
         GROUP BY store_id
       ) complete ON complete.store_id = stats.store_id
       WHERE stats.campaign_id = ?

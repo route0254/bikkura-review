@@ -12,7 +12,11 @@ export async function onRequestGet({ request, env }) {
         report.campaign_id, campaign.name AS campaign_name, report.visit_date,
         report.usage_type, report.panel_draws, report.panel_wins,
         report.mobile_draws, report.mobile_wins, report.unknown_prize_count,
-        report.prize_breakdown_status, report.status AS moderation_status,
+        report.prize_breakdown_status, report.prize_input_mode,
+        CASE WHEN report.prize_input_mode = 'total' THEN report.guaranteed_prize_count
+          ELSE COALESCE((SELECT SUM(quantity) FROM report_guaranteed_prizes WHERE report_id = report.id), 0)
+        END AS guaranteed_prize_count,
+        report.status AS moderation_status,
         report.created_at, withdrawal.withdrawn_at,
         CASE WHEN withdrawal.report_id IS NOT NULL THEN 'withdrawn' ELSE report.status END AS status
       FROM reports report
@@ -27,12 +31,11 @@ export async function onRequestGet({ request, env }) {
     if (reports.length) {
       const placeholders = reports.map(() => "?").join(",");
       prizes = (await env.DB.prepare(`
-        SELECT acquisition.report_id, acquisition.acquisition_type,
-          acquisition.quantity, category.id, category.name
-        FROM report_prize_acquisitions acquisition
-        JOIN prize_categories category ON category.id = acquisition.prize_category_id
-        WHERE acquisition.report_id IN (${placeholders}) AND acquisition.quantity > 0
-        ORDER BY acquisition.acquisition_type, category.sort_order, category.id
+        SELECT observed.report_id, observed.quantity, category.id, category.name
+        FROM report_observed_prizes observed
+        JOIN prize_categories category ON category.id = observed.prize_category_id
+        WHERE observed.report_id IN (${placeholders}) AND observed.quantity > 0
+        ORDER BY category.sort_order, category.id
       `).bind(...reports.map((report) => report.id)).all()).results;
     }
     return json({
@@ -50,6 +53,8 @@ export async function onRequestGet({ request, env }) {
         mobileWins: Number(report.mobile_wins),
         unknownPrizeCount: Number(report.unknown_prize_count),
         prizeBreakdownStatus: report.prize_breakdown_status,
+        guaranteedPrizeCount: Number(report.guaranteed_prize_count),
+        prizeInputMode: report.prize_input_mode,
         status: report.status,
         moderationStatus: report.moderation_status,
         withdrawnAt: report.withdrawn_at,
@@ -58,7 +63,7 @@ export async function onRequestGet({ request, env }) {
           id: prize.id,
           name: prize.name,
           quantity: Number(prize.quantity),
-          acquisitionType: prize.acquisition_type,
+          acquisitionType: "total",
         })),
       })),
     }, { headers: { "Cache-Control": "no-store" } });

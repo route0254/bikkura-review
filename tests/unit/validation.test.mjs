@@ -118,6 +118,27 @@ test("抽選景品と確約景品を分離し、確約景品は当たり数と�
   assert.ok(invalid.some((error) => error.includes("取得経路")));
 });
 
+test("新しい入力では確定セット等を回数として持ち、景品カテゴリは取得経路共通の合計にする", () => {
+  const payload = {
+    ...valid,
+    prizeInputMode: "total",
+    guaranteedPrizeCount: 2,
+    prizes: [
+      { acquisitionType: "total", prizeCategoryId: "prize-1", quantity: 5 },
+      { acquisitionType: "total", prizeCategoryId: "prize-2", quantity: 4 },
+    ],
+    itemBreakdowns: [{
+      acquisitionType: "total", prizeCategoryId: "prize-1", status: "partial",
+      items: [{ prizeItemId: "item-1", quantity: 2 }],
+    }],
+  };
+  assert.deepEqual(validateReportPayload(payload, context), []);
+  const wrongTotal = validateReportPayload({ ...payload, guaranteedPrizeCount: 1 }, context);
+  assert.ok(wrongTotal.some((error) => error.includes("確定セット等")));
+  const mixed = validateReportPayload({ ...payload, prizes: [{ acquisitionType: "draw", prizeCategoryId: "prize-1", quantity: 8 }] }, context);
+  assert.ok(mixed.some((error) => error.includes("入力方法と一致")));
+});
+
 test("終了済みキャンペーンへの新規投稿を拒否する", () => {
   const errors = validateReportPayload(valid, { ...context, today: "2026-10-01" });
   assert.ok(errors.some((error) => error.includes("終了したキャンペーン")));

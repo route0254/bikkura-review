@@ -1,6 +1,6 @@
 import { createReportFingerprint } from "../../lib/duplicate.js";
 import { postingDecision } from "../../lib/posting.js";
-import { acquisitionTypeOf } from "../../lib/report-policy.js";
+import { acquisitionTypeOf, prizeInputModeOf } from "../../lib/report-policy.js";
 import { assessReportRisk } from "../../lib/risk.js";
 import { REPORT_LIMITS, todayInJapan, validateReportPayload } from "../../lib/validation.js";
 import { optionalFirebaseUser } from "./firebase-auth.js";
@@ -37,8 +37,11 @@ function activeAggregateStatements(env, payload, createdAt, totalPrizeCount) {
         updated_at = excluded.updated_at
     `).bind(payload.storeId, payload.campaignId, payload.usageType, payload.panelDraws, payload.panelWins, payload.mobileDraws, payload.mobileWins, createdAt),
   ];
-  if (payload.prizeBreakdownStatus === "complete") {
-    for (const prize of payload.prizes.filter((item) => item.quantity > 0 && acquisitionTypeOf(item) === "draw")) {
+  const prizeInputMode = prizeInputModeOf(payload);
+  const canAggregateCategories = payload.prizeBreakdownStatus === "complete"
+    && (prizeInputMode === "by_acquisition" || payload.guaranteedPrizeCount === 0);
+  if (canAggregateCategories) {
+    for (const prize of payload.prizes.filter((item) => item.quantity > 0 && (prizeInputMode === "total" || acquisitionTypeOf(item) === "draw"))) {
       statements.push(env.DB.prepare(`
         INSERT INTO store_campaign_prize_stats (store_id, campaign_id, prize_category_id, reported_quantity, updated_at)
         VALUES (?, ?, ?, ?, ?)
@@ -52,7 +55,16 @@ function activeAggregateStatements(env, payload, createdAt, totalPrizeCount) {
 }
 
 function reportInsertStatements({ env, payload, identity, risk, reportId, createdAt, nowSeconds, fingerprint, slot }) {
-  const totalPrizeCount = payload.prizes.filter((prize) => acquisitionTypeOf(prize) === "draw").reduce((sum, prize) => sum + prize.quantity, payload.unknownPrizeCount);
+  const prizeInputMode = prizeInputModeOf(payload);
+  const legacyGuaranteedCount = payload.prizes
+    .filter((prize) => acquisitionTypeOf(prize) === "guaranteed")
+    .reduce((sum, prize) => sum + prize.quantity, 0);
+  const guaranteedPrizeCount = prizeInputMode === "total"
+    ? payload.guaranteedPrizeCount ?? 0
+    : legacyGuaranteedCount;
+  const totalPrizeCount = prizeInputMode === "total"
+    ? payload.panelWins + payload.mobileWins
+    : payload.prizes.filter((prize) => acquisitionTypeOf(prize) === "draw").reduce((sum, prize) => sum + prize.quantity, payload.unknownPrizeCount);
   const statements = [];
   if (identity.userId) {
     statements.push(env.DB.prepare(`
@@ -65,30 +77,38 @@ function reportInsertStatements({ env, payload, identity, risk, reportId, create
     INSERT INTO reports (
       id, source_type, store_id, campaign_id, visit_date, usage_type, panel_draws, panel_wins,
       mobile_draws, mobile_wins, unknown_prize_count, status, created_at,
-      prize_breakdown_status, user_id, daily_rate_hash, abuse_hash, risk_score, risk_reasons
-    ) VALUES (?, 'user', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      prize_breakdown_status, user_id, daily_rate_hash, abuse_hash, risk_score, risk_reasons,
+      guaranteed_prize_count, prize_input_mode
+    ) VALUES (?, 'user', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     reportId, payload.storeId, payload.campaignId, payload.visitDate, payload.usageType,
     payload.panelDraws, payload.panelWins, payload.mobileDraws, payload.mobileWins,
     payload.unknownPrizeCount, risk.status, createdAt, payload.prizeBreakdownStatus,
     identity.userId, identity.dailyRateHash, identity.abuseHash, risk.score, JSON.stringify(risk.reasons),
+    guaranteedPrizeCount, prizeInputMode,
   ));
   for (const prize of payload.prizes.filter((item) => item.quantity > 0)) {
     const acquisitionType = acquisitionTypeOf(prize);
-    statements.push(acquisitionType === "draw"
-      ? env.DB.prepare("INSERT INTO report_prizes (report_id, prize_category_id, quantity) VALUES (?, ?, ?)").bind(reportId, prize.prizeCategoryId, prize.quantity)
-      : env.DB.prepare("INSERT INTO report_guaranteed_prizes (report_id, prize_category_id, quantity) VALUES (?, ?, ?)").bind(reportId, prize.prizeCategoryId, prize.quantity));
+    if (acquisitionType === "total") {
+      statements.push(env.DB.prepare("INSERT INTO report_total_prizes (report_id, prize_category_id, quantity) VALUES (?, ?, ?)").bind(reportId, prize.prizeCategoryId, prize.quantity));
+    } else {
+      statements.push(acquisitionType === "draw"
+        ? env.DB.prepare("INSERT INTO report_prizes (report_id, prize_category_id, quantity) VALUES (?, ?, ?)").bind(reportId, prize.prizeCategoryId, prize.quantity)
+        : env.DB.prepare("INSERT INTO report_guaranteed_prizes (report_id, prize_category_id, quantity) VALUES (?, ?, ?)").bind(reportId, prize.prizeCategoryId, prize.quantity));
+    }
   }
   for (const breakdown of payload.itemBreakdowns ?? []) {
     if (breakdown.status === "unknown") continue;
     const acquisitionType = acquisitionTypeOf(breakdown);
-    statements.push(acquisitionType === "draw"
-      ? env.DB.prepare("INSERT INTO report_prize_item_breakdowns (report_id, prize_category_id, status) VALUES (?, ?, ?)").bind(reportId, breakdown.prizeCategoryId, breakdown.status)
-      : env.DB.prepare("INSERT INTO report_guaranteed_item_breakdowns (report_id, prize_category_id, status) VALUES (?, ?, ?)").bind(reportId, breakdown.prizeCategoryId, breakdown.status));
+    const breakdownTable = acquisitionType === "total"
+      ? "report_total_item_breakdowns"
+      : acquisitionType === "draw" ? "report_prize_item_breakdowns" : "report_guaranteed_item_breakdowns";
+    statements.push(env.DB.prepare(`INSERT INTO ${breakdownTable} (report_id, prize_category_id, status) VALUES (?, ?, ?)`).bind(reportId, breakdown.prizeCategoryId, breakdown.status));
     for (const item of breakdown.items.filter((entry) => entry.quantity > 0)) {
-      statements.push(acquisitionType === "draw"
-        ? env.DB.prepare("INSERT INTO report_prize_items (report_id, prize_category_id, prize_item_id, quantity) VALUES (?, ?, ?, ?)").bind(reportId, breakdown.prizeCategoryId, item.prizeItemId, item.quantity)
-        : env.DB.prepare("INSERT INTO report_guaranteed_items (report_id, prize_category_id, prize_item_id, quantity) VALUES (?, ?, ?, ?)").bind(reportId, breakdown.prizeCategoryId, item.prizeItemId, item.quantity));
+      const itemTable = acquisitionType === "total"
+        ? "report_total_items"
+        : acquisitionType === "draw" ? "report_prize_items" : "report_guaranteed_items";
+      statements.push(env.DB.prepare(`INSERT INTO ${itemTable} (report_id, prize_category_id, prize_item_id, quantity) VALUES (?, ?, ?, ?)`).bind(reportId, breakdown.prizeCategoryId, item.prizeItemId, item.quantity));
     }
   }
   statements.push(
@@ -157,7 +177,20 @@ export async function handleReportPost({ request, env }) {
     const validationErrors = validateReportPayload(payload, await reportContext(env, payload));
     if (validationErrors.length) return json({ error: "入力内容を確認してください。", errors: validationErrors }, { status: 422, headers: { "Cache-Control": "no-store" } });
     const turnstile = await verifyTurnstile(payload.turnstileToken, env.TURNSTILE_SECRET_KEY, request.headers.get("CF-Connecting-IP"));
-    if (!turnstile.success) return apiError("投稿確認に失敗しました。ページを再読み込みしてお試しください。", 403);
+    if (!turnstile.success) {
+      console.warn("Turnstile verification failed", turnstile.errorCodes);
+      const configurationError = turnstile.errorCodes.some((code) => ["missing-input-secret", "invalid-input-secret", "verification-unavailable"].includes(code));
+      return json({
+        error: configurationError
+          ? "投稿確認のサーバー設定に問題があります。時間をおいてお試しください。"
+          : "投稿確認の有効期限が切れたか、通信に失敗しました。確認を更新したので、もう一度投稿してください。",
+        code: "turnstile_failed",
+      }, { status: configurationError ? 503 : 403, headers: { "Cache-Control": "no-store" } });
+    }
+    if (turnstile.action && turnstile.action !== "report_submit") {
+      console.warn("Unexpected Turnstile action", turnstile.action);
+      return json({ error: "投稿確認を更新したので、もう一度投稿してください。", code: "turnstile_failed" }, { status: 403, headers: { "Cache-Control": "no-store" } });
+    }
 
     const now = new Date();
     const nowSeconds = Math.floor(now.getTime() / 1000);

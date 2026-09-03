@@ -11,3 +11,13 @@ test("0006は既存投稿テーブルを再構築しない追加型migrationで�
   assert.match(sql, /'draw' AS acquisition_type/i);
   assert.match(sql, /CREATE VIEW active_user_reports/i);
 });
+
+test("0007も既存投稿を保持し、合計景品入力を追加するmigrationである", async () => {
+  const sql = await readFile(new URL("../../migrations/0007_total_prize_input.sql", import.meta.url), "utf8");
+  assert.doesNotMatch(sql, /DROP\s+(?:TABLE|COLUMN)|DELETE\s+FROM\s+(?:reports|report_prizes)|CREATE\s+TABLE\s+reports\b/i);
+  assert.match(sql, /ADD COLUMN guaranteed_prize_count/i);
+  assert.match(sql, /ADD COLUMN prize_input_mode/i);
+  assert.match(sql, /CREATE TABLE report_total_prizes/i);
+  assert.match(sql, /CREATE VIEW active_draw_prize_reports/i);
+  assert.match(sql, /CREATE VIEW report_observed_prizes/i);
+});

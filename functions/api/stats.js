@@ -25,8 +25,8 @@ export async function onRequestGet({ request, env }) {
       `).bind(campaign.id).all(),
       env.DB.prepare(`
         SELECT COUNT(*) AS complete_report_count
-        FROM active_user_reports
-        WHERE campaign_id = ? AND prize_breakdown_status = 'complete'
+        FROM active_draw_prize_reports
+        WHERE campaign_id = ?
       `).bind(campaign.id).first(),
       env.DB.prepare(`
         SELECT
@@ -52,8 +52,8 @@ export async function onRequestGet({ request, env }) {
         FROM store_campaign_stats scs
         LEFT JOIN (
           SELECT store_id, COUNT(*) AS complete_report_count
-          FROM active_user_reports
-          WHERE campaign_id = ? AND prize_breakdown_status = 'complete'
+          FROM active_draw_prize_reports
+          WHERE campaign_id = ?
           GROUP BY store_id
         ) complete ON complete.store_id = scs.store_id
         LEFT JOIN (

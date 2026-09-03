@@ -222,20 +222,20 @@
             </div>
           </fieldset>
           <fieldset>
-            <legend>抽選で当たった景品</legend>
-            <label class="field field-wide breakdown-field" for="prize-breakdown-status"><span>景品の内訳をすべて入力できていますか？ <b>必須</b></span><select id="prize-breakdown-status" name="prizeBreakdownStatus" required><option value="">選択してください</option><option value="complete">すべて入力した</option><option value="partial">一部わからない</option><option value="unknown">内訳は未入力</option></select></label>
-            <div id="prize-fields" class="prize-entry-list"></div>
-            <label class="field" for="unknown-prizes"><span>内訳不明</span><input id="unknown-prizes" name="unknownPrizeCount" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>
+            <legend>ビッくらポン！確定のセット等</legend>
+            <label class="field" for="guaranteed-prize-count"><span>抽選なしでもらった景品数</span><input id="guaranteed-prize-count" name="guaranteedPrizeCount" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>
+            <p class="section-note section-note-left">確定でもらえるセットや対象商品を利用していなければ0個です。抽選回数・当選率には含めません。</p>
           </fieldset>
           <fieldset>
-            <legend>セット商品などでもらった確約景品</legend>
-            <label class="guaranteed-toggle"><input id="guaranteed-toggle" type="checkbox"> 確約景品も入力する</label>
-            <p class="section-note section-note-left">抽選景品とは別に保存し、当選率・抽選景品割合・ランキングには含めません。</p>
-            <div id="guaranteed-prize-fields" class="prize-entry-list" hidden></div>
+            <legend>今回もらった景品の合計</legend>
+            <p class="section-note section-note-left">パネル・スマホ注文・確定セット等を分けず、覚えている合計だけ入力してください。</p>
+            <label class="field field-wide breakdown-field" for="prize-breakdown-status"><span>景品の内訳をすべて入力できていますか？ <b>必須</b></span><select id="prize-breakdown-status" name="prizeBreakdownStatus" required><option value="">選択してください</option><option value="complete">すべて入力した</option><option value="partial">一部わからない</option><option value="unknown">内訳は未入力</option></select></label>
+            <div id="prize-fields" class="prize-entry-list"></div>
+            <label class="field" for="unknown-prizes"><span>種類を覚えていない景品</span><input id="unknown-prizes" name="unknownPrizeCount" type="number" min="0" max="300" inputmode="numeric" value="0" required></label>
           </fieldset>
           <input id="report-campaign" name="campaignId" type="hidden">
           <div id="turnstile-container" class="turnstile-container" aria-label="投稿確認"></div>
-          <p class="turnstile-note">投稿時に Cloudflare Turnstile で確認します。</p>
+          <p id="turnstile-status" class="turnstile-note" role="status">投稿確認を準備しています。</p>
           <div class="form-actions"><button class="button button-secondary" type="button" data-close-report>キャンセル</button><button class="button button-primary" type="submit">この内容で投稿</button></div>
           <p id="form-status" class="form-status" role="status" aria-live="polite"></p>
         </form>

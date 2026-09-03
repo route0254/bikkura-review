@@ -13,9 +13,12 @@ export function rebuildStoreCampaignStatements(env, storeId, campaignId, updated
         store_id, campaign_id, COUNT(*), COALESCE(SUM(panel_draws), 0),
         COALESCE(SUM(panel_wins), 0), COALESCE(SUM(mobile_draws), 0),
         COALESCE(SUM(mobile_wins), 0),
-        COALESCE(SUM(unknown_prize_count + COALESCE((
-          SELECT SUM(quantity) FROM report_prizes WHERE report_id = active_user_reports.id
-        ), 0)), 0),
+        COALESCE(SUM(CASE
+          WHEN prize_input_mode = 'total' THEN panel_wins + mobile_wins
+          ELSE unknown_prize_count + COALESCE((
+            SELECT SUM(quantity) FROM report_prizes WHERE report_id = active_user_reports.id
+          ), 0)
+        END), 0),
         COALESCE(SUM(unknown_prize_count), 0), ?
       FROM active_user_reports
       WHERE store_id = ? AND campaign_id = ?
@@ -37,14 +40,22 @@ export function rebuildStoreCampaignStatements(env, storeId, campaignId, updated
       INSERT INTO store_campaign_prize_stats (
         store_id, campaign_id, prize_category_id, reported_quantity, updated_at
       )
-      SELECT report.store_id, report.campaign_id, prize.prize_category_id,
-        COALESCE(SUM(prize.quantity), 0), ?
-      FROM active_user_reports report
-      JOIN report_prizes prize ON prize.report_id = report.id
-      WHERE report.store_id = ? AND report.campaign_id = ?
-        AND report.prize_breakdown_status = 'complete'
-      GROUP BY report.store_id, report.campaign_id, prize.prize_category_id
-      HAVING SUM(prize.quantity) > 0
+      SELECT eligible.store_id, eligible.campaign_id, eligible.prize_category_id,
+        COALESCE(SUM(eligible.quantity), 0), ?
+      FROM (
+        SELECT report.store_id, report.campaign_id, prize.prize_category_id, prize.quantity
+        FROM active_draw_prize_reports report
+        JOIN report_prizes prize ON prize.report_id = report.id
+        WHERE report.prize_input_mode = 'by_acquisition'
+        UNION ALL
+        SELECT report.store_id, report.campaign_id, prize.prize_category_id, prize.quantity
+        FROM active_draw_prize_reports report
+        JOIN report_total_prizes prize ON prize.report_id = report.id
+        WHERE report.prize_input_mode = 'total'
+      ) eligible
+      WHERE eligible.store_id = ? AND eligible.campaign_id = ?
+      GROUP BY eligible.store_id, eligible.campaign_id, eligible.prize_category_id
+      HAVING SUM(eligible.quantity) > 0
     `).bind(updatedAt, storeId, campaignId),
   ];
 }

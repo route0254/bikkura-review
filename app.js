@@ -39,8 +39,8 @@ const elements = {
   reportCampaign: requiredElement("#report-campaign"),
   visitDate: requiredElement("#visit-date"),
   prizeFields: requiredElement("#prize-fields"),
-  guaranteedToggle: requiredElement("#guaranteed-toggle"),
-  guaranteedPrizeFields: requiredElement("#guaranteed-prize-fields"),
+  guaranteedPrizeCount: requiredElement("#guaranteed-prize-count"),
+  turnstileStatus: requiredElement("#turnstile-status"),
   formErrors: requiredElement("#form-errors"),
   formStatus: requiredElement("#form-status"),
   authControls: requiredElement("#auth-controls"),
@@ -158,8 +158,7 @@ function renderCampaigns() {
     elements.campaignPeriod.innerHTML = `${escapeHtml(state.campaign.startsOn.replaceAll("-", "/"))}〜${escapeHtml(state.campaign.endsOn.replaceAll("-", "/"))} <span>公式一次情報で確認済み</span>`;
     elements.campaignArchiveNote.hidden = !isCampaignArchived();
     elements.reportCampaign.value = state.campaign.id;
-    renderPrizeFields(state.campaign.prizeCategories ?? [], state.campaign.prizeItems ?? [], "draw", elements.prizeFields);
-    renderPrizeFields(state.campaign.prizeCategories ?? [], state.campaign.prizeItems ?? [], "guaranteed", elements.guaranteedPrizeFields);
+    renderPrizeFields(state.campaign.prizeCategories ?? [], state.campaign.prizeItems ?? [], "total", elements.prizeFields);
   }
 }
 
@@ -279,7 +278,7 @@ async function openStore(storeId, trigger) {
   state.lastTrigger = trigger ?? document.activeElement;
   const stats = getStats(store);
   elements.storeDialogTitle.textContent = store.name;
-  elements.storeDialogBody.innerHTML = `<p class="detail-address">${escapeHtml(store.address)}</p><div class="period-tabs" aria-label="集計期間"><button type="button" data-store-period="all" aria-pressed="true">全期間</button><button type="button" data-store-period="7d" aria-pressed="false">直近7日</button></div><p id="detail-period-note" class="section-note section-note-left"></p><div class="detail-stats"><div class="detail-stat"><span>投稿</span><strong id="detail-report-count">${stats.reportCount}</strong>件</div><div class="detail-stat"><span>抽選</span><strong id="detail-draw-count">${stats.totalDraws}</strong>回</div><div class="detail-stat"><span>当たり</span><strong id="detail-win-count">${stats.totalWins}</strong>回</div><div class="detail-stat"><span>抽選景品内訳</span><strong id="detail-prize-count">${stats.completePrizeCount ?? 0}</strong>個</div></div><div class="detail-actions"><button class="button button-primary" type="button" data-open-report data-store="${escapeHtml(store.id)}">この店舗の結果を投稿</button><button class="button button-secondary" type="button" data-share-store>この店舗を共有</button>${store.officialUrl ? `<a class="button button-secondary" href="${escapeHtml(store.officialUrl)}" target="_blank" rel="noreferrer">公式店舗情報</a>` : ""}</div><section class="detail-section"><h3>通常／ビッくらポン！プラス別の結果</h3><p id="detail-rate-note" class="section-note section-note-left"></p><div id="detail-usage" class="usage-breakdown"></div></section><section class="detail-section"><h3>抽選で当たった景品カテゴリ</h3><p id="detail-prize-note" class="section-note section-note-left">抽選景品の内訳をすべて入力した投稿のみ集計しています。</p><div id="detail-prizes" class="detail-prize-list">${state.campaign?.prizeCategories?.map((prize) => `<div class="recent-report"><p>${escapeHtml(prize.name)} <strong>0個</strong></p></div>`).join("") ?? ""}</div></section><section id="detail-guaranteed-section" class="detail-section" hidden><h3>セット商品などでもらった確約景品</h3><p class="section-note section-note-left">抽選結果とは別データです。当選率・抽選景品割合・ランキングには含めていません。</p><div id="detail-guaranteed-prizes" class="detail-prize-list"></div></section><section class="detail-section"><h3>個別景品内訳</h3><p class="section-note section-note-left">抽選で当たった個別景品のうち、カテゴリ内訳が完全なデータだけを集計します。</p><div id="detail-item-prizes"></div></section><section class="detail-section" aria-labelledby="recent-reports-title"><h3 id="recent-reports-title">みんなの投稿</h3><div id="recent-reports"><p class="section-note section-note-left">投稿データはまだありません。</p></div></section><section class="detail-section external-reference-section" aria-labelledby="external-reports-title"><h3 id="external-reports-title">外部で確認された参考情報</h3><p class="external-reference-notice">X・口コミサイト・ブログ等で一般公開されている情報から確認できた内容です。サイト利用者による直接投稿とは別データで、全国統計やランキングには含めていません。</p><div id="external-reports" aria-live="polite"><p class="section-note section-note-left">外部参考情報を読み込んでいます。</p></div></section>`;
+  elements.storeDialogBody.innerHTML = `<p class="detail-address">${escapeHtml(store.address)}</p><div class="period-tabs" aria-label="集計期間"><button type="button" data-store-period="all" aria-pressed="true">全期間</button><button type="button" data-store-period="7d" aria-pressed="false">直近7日</button></div><p id="detail-period-note" class="section-note section-note-left"></p><div class="detail-stats"><div class="detail-stat"><span>投稿</span><strong id="detail-report-count">${stats.reportCount}</strong>件</div><div class="detail-stat"><span>抽選</span><strong id="detail-draw-count">${stats.totalDraws}</strong>回</div><div class="detail-stat"><span>当たり</span><strong id="detail-win-count">${stats.totalWins}</strong>回</div><div class="detail-stat"><span>抽選景品集計</span><strong id="detail-prize-count">${stats.completePrizeCount ?? 0}</strong>個</div></div><div class="detail-actions"><button class="button button-primary" type="button" data-open-report data-store="${escapeHtml(store.id)}">この店舗の結果を投稿</button><button class="button button-secondary" type="button" data-share-store>この店舗を共有</button>${store.officialUrl ? `<a class="button button-secondary" href="${escapeHtml(store.officialUrl)}" target="_blank" rel="noreferrer">公式店舗情報</a>` : ""}</div><section class="detail-section"><h3>通常／ビッくらポン！プラス別の結果</h3><p id="detail-rate-note" class="section-note section-note-left"></p><div id="detail-usage" class="usage-breakdown"></div></section><section class="detail-section"><h3>抽選で当たった景品カテゴリ</h3><p id="detail-prize-note" class="section-note section-note-left">確定セット等を含まず、抽選景品の種類が分かる投稿のみ集計しています。</p><div id="detail-prizes" class="detail-prize-list">${state.campaign?.prizeCategories?.map((prize) => `<div class="recent-report"><p>${escapeHtml(prize.name)} <strong>0個</strong></p></div>`).join("") ?? ""}</div></section><section id="detail-guaranteed-section" class="detail-section" hidden><h3>ビッくらポン！確定のセット等</h3><p class="section-note section-note-left">抽選なしでもらった景品は、当選率・抽選景品割合・ランキングには含めていません。</p><p class="guaranteed-total"><strong id="detail-guaranteed-count">0</strong>個</p></section><section class="detail-section"><h3>個別景品内訳</h3><p class="section-note section-note-left">取得方法を分けずに入力された合計のうち、抽選分を正確に判別できるデータだけを集計します。</p><div id="detail-item-prizes"></div></section><section class="detail-section" aria-labelledby="recent-reports-title"><h3 id="recent-reports-title">みんなの投稿</h3><div id="recent-reports"><p class="section-note section-note-left">投稿データはまだありません。</p></div></section><section class="detail-section external-reference-section" aria-labelledby="external-reports-title"><h3 id="external-reports-title">外部で確認された参考情報</h3><p class="external-reference-notice">X・口コミサイト・ブログ等で一般公開されている情報から確認できた内容です。サイト利用者による直接投稿とは別データで、全国統計やランキングには含めていません。</p><div id="external-reports" aria-live="polite"><p class="section-note section-note-left">外部参考情報を読み込んでいます。</p></div></section>`;
   const url = new URL(location.href);
   url.searchParams.set("store", storeId);
   if (state.campaign) url.searchParams.set("campaign", state.campaign.id);
@@ -368,11 +367,11 @@ function updateStoreDialogStatsV2(detail) {
     }).join("");
   }
   const guaranteedSection = document.querySelector("#detail-guaranteed-section");
-  const guaranteedBox = document.querySelector("#detail-guaranteed-prizes");
+  const guaranteedBox = document.querySelector("#detail-guaranteed-count");
   if (guaranteedSection && guaranteedBox) {
-    const guaranteedPrizes = detail.guaranteedPrizes ?? [];
-    guaranteedSection.hidden = guaranteedPrizes.length === 0;
-    guaranteedBox.innerHTML = guaranteedPrizes.map((prize) => `<article class="detail-prize-card"><div><h4>${escapeHtml(prize.name)}</h4><p><strong>${Number(prize.quantity).toLocaleString("ja-JP")}</strong>個</p></div></article>`).join("");
+    const guaranteedCount = Number(detail.guaranteedPrizeCount ?? 0);
+    guaranteedSection.hidden = guaranteedCount === 0;
+    guaranteedBox.textContent = guaranteedCount.toLocaleString("ja-JP");
   }
   const itemBox = document.querySelector("#detail-item-prizes");
   if (itemBox) {
@@ -403,7 +402,7 @@ function renderRecentReports(reports) {
   const target = document.querySelector("#recent-reports");
   if (!target) return;
   if (!reports.length) { target.innerHTML = `<p class="section-note section-note-left">投稿データはまだありません。</p>`; return; }
-  target.innerHTML = reports.map((report) => `<article class="recent-report"><p><strong>${escapeHtml(report.visitDate.replaceAll("-", "/"))}</strong>　${escapeHtml({ normal: "通常", plus: "プラス", unknown: "区分不明" }[report.usageType] ?? "区分不明")}</p><p>タッチパネル：${report.panelDraws}回 / ${report.panelWins}当たり</p><p>スマホ注文：${report.mobileDraws}回 / ${report.mobileWins}当たり</p><p>景品内訳：${escapeHtml({ complete: "すべて入力", partial: "一部不明", unknown: "未入力" }[report.prizeBreakdownStatus] ?? "未入力")}</p>${report.prizes?.length ? `<p>抽選景品：${report.prizes.map((prize) => `${escapeHtml(prize.name)} ${prize.quantity}`).join("、")}</p>` : ""}${report.guaranteedPrizes?.length ? `<p>確約景品：${report.guaranteedPrizes.map((prize) => `${escapeHtml(prize.name)} ${prize.quantity}`).join("、")}</p>` : ""}</article>`).join("");
+  target.innerHTML = reports.map((report) => `<article class="recent-report"><p><strong>${escapeHtml(report.visitDate.replaceAll("-", "/"))}</strong>　${escapeHtml({ normal: "通常", plus: "プラス", unknown: "区分不明" }[report.usageType] ?? "区分不明")}</p><p>タッチパネル：${report.panelDraws}回 / ${report.panelWins}当たり</p><p>スマホ注文：${report.mobileDraws}回 / ${report.mobileWins}当たり</p><p>確定セット等：${Number(report.guaranteedPrizeCount ?? 0)}個</p><p>景品内訳：${escapeHtml({ complete: "すべて入力", partial: "一部不明", unknown: "未入力" }[report.prizeBreakdownStatus] ?? "未入力")}</p>${report.prizes?.length ? `<p>景品合計：${report.prizes.map((prize) => `${escapeHtml(prize.name)} ${prize.quantity}個`).join("、")}</p>` : ""}</article>`).join("");
 }
 
 function updateItemBreakdownStatus(categoryKey) {
@@ -535,7 +534,7 @@ function openReport(storeId, trigger) {
   elements.formStatus.textContent = "";
   elements.reportDialog.showModal();
   refreshPostingStatus();
-  ensureTurnstile();
+  ensureTurnstile({ reset: true });
 }
 
 function closeReport() { elements.reportDialog.close(); state.lastTrigger?.focus?.(); }
@@ -547,12 +546,10 @@ function renderMyReports(reports) {
   }
   const statusLabels = { active: "公開中", pending: "確認中", hidden: "非表示", withdrawn: "取り下げ済み" };
   elements.myReportsBody.innerHTML = `<div class="my-reports-list">${reports.map((report) => {
-    const drawPrizes = report.prizes.filter((prize) => prize.acquisitionType === "draw");
-    const guaranteedPrizes = report.prizes.filter((prize) => prize.acquisitionType === "guaranteed");
     const action = report.status === "withdrawn"
       ? (report.moderationStatus === "active" ? `<button class="button button-secondary" type="button" data-restore-report="${escapeHtml(report.id)}">取り下げを解除</button>` : "")
       : `<button class="button button-secondary" type="button" data-withdraw-report="${escapeHtml(report.id)}">投稿を取り下げる</button>`;
-    return `<article class="my-report-card"><header><div><strong>${escapeHtml(report.storeName)}</strong><time>${escapeHtml(report.visitDate.replaceAll("-", "/"))}</time></div><span>${escapeHtml(statusLabels[report.status] ?? report.status)}</span></header><p>抽選 ${report.panelDraws + report.mobileDraws}回 / 当たり ${report.panelWins + report.mobileWins}回</p>${drawPrizes.length ? `<p>抽選景品：${drawPrizes.map((prize) => `${escapeHtml(prize.name)} ${prize.quantity}個`).join("、")}</p>` : ""}${guaranteedPrizes.length ? `<p>確約景品：${guaranteedPrizes.map((prize) => `${escapeHtml(prize.name)} ${prize.quantity}個`).join("、")}</p>` : ""}<footer>${action}</footer></article>`;
+    return `<article class="my-report-card"><header><div><strong>${escapeHtml(report.storeName)}</strong><time>${escapeHtml(report.visitDate.replaceAll("-", "/"))}</time></div><span>${escapeHtml(statusLabels[report.status] ?? report.status)}</span></header><p>抽選 ${report.panelDraws + report.mobileDraws}回 / 当たり ${report.panelWins + report.mobileWins}回 / 確定セット等 ${Number(report.guaranteedPrizeCount ?? 0)}個</p>${report.prizes.length ? `<p>景品合計：${report.prizes.map((prize) => `${escapeHtml(prize.name)} ${prize.quantity}個`).join("、")}</p>` : ""}<footer>${action}</footer></article>`;
   }).join("")}</div>`;
 }
 
@@ -596,10 +593,13 @@ function validateForm(payload) {
   });
 }
 
-async function ensureTurnstile() {
+async function ensureTurnstile(options = {}) {
   const container = document.querySelector("#turnstile-container");
   if (window.turnstile && turnstileWidgetId !== null) {
-    window.turnstile.reset(turnstileWidgetId);
+    if (options.reset) {
+      elements.turnstileStatus.textContent = "投稿確認を更新しています。";
+      window.turnstile.reset(turnstileWidgetId);
+    }
     return;
   }
   try {
@@ -616,17 +616,46 @@ async function ensureTurnstile() {
       });
     }
     await turnstileLoader;
-    if (turnstileWidgetId === null) turnstileWidgetId = window.turnstile.render(container, { sitekey: config.turnstileSiteKey, theme: "light" });
+    if (turnstileWidgetId === null) turnstileWidgetId = window.turnstile.render(container, {
+      sitekey: config.turnstileSiteKey,
+      theme: "auto",
+      size: "flexible",
+      action: "report_submit",
+      retry: "auto",
+      "retry-interval": 5000,
+      callback: () => { elements.turnstileStatus.textContent = "投稿確認が完了しました。"; },
+      "expired-callback": () => {
+        elements.turnstileStatus.textContent = "投稿確認の期限が切れたため更新しています。";
+        window.turnstile.reset(turnstileWidgetId);
+      },
+      "timeout-callback": () => {
+        elements.turnstileStatus.textContent = "投稿確認が時間切れになったため更新しています。";
+        window.turnstile.reset(turnstileWidgetId);
+      },
+      "error-callback": (code) => {
+        console.warn("Turnstile client error", code);
+        elements.turnstileStatus.textContent = "通信状況により投稿確認を完了できません。自動で再試行しています。";
+        return true;
+      },
+      "unsupported-callback": () => { elements.turnstileStatus.textContent = "このブラウザでは投稿確認を利用できません。ブラウザを最新版にしてお試しください。"; },
+    });
   } catch {
-    container.textContent = "投稿機能を利用するには Turnstile のローカル設定が必要です。";
+    container.textContent = "投稿確認を読み込めませんでした。通信状況を確認してページを再読み込みしてください。";
+    elements.turnstileStatus.textContent = "投稿確認を利用できません。";
   }
+}
+
+function currentTurnstileToken() {
+  if (window.turnstile && turnstileWidgetId !== null && typeof window.turnstile.getResponse === "function") {
+    return window.turnstile.getResponse(turnstileWidgetId) ?? "";
+  }
+  return elements.reportForm.querySelector('[name="cf-turnstile-response"]')?.value ?? "";
 }
 
 function formPayload() {
   const data = new FormData(elements.reportForm);
   const itemBreakdowns = [...elements.reportForm.querySelectorAll("[data-item-panel]")].filter((panel) => panel.dataset.enabled === "true").map((panel) => {
     const [acquisitionType, prizeCategoryId] = panel.dataset.itemPanel.split(":");
-    if (acquisitionType === "guaranteed" && !elements.guaranteedToggle.checked) return null;
     const categoryQuantity = Number(data.get(`prize:${acquisitionType}:${prizeCategoryId}`) ?? 0);
     const items = [...panel.querySelectorAll('input[name^="item:"]')].map((input) => ({ prizeItemId: input.name.split(":").at(-1), quantity: Number(input.value || 0) })).filter((item) => item.quantity > 0);
     const itemTotal = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -634,14 +663,16 @@ function formPayload() {
   }).filter((breakdown) => breakdown && Number(data.get(`prize:${breakdown.acquisitionType}:${breakdown.prizeCategoryId}`) ?? 0) > 0);
   return {
     storeId: data.get("storeId"), campaignId: data.get("campaignId"), visitDate: data.get("visitDate"), usageType: data.get("usageType"),
+    prizeInputMode: "total",
+    guaranteedPrizeCount: Number(data.get("guaranteedPrizeCount")),
     prizeBreakdownStatus: data.get("prizeBreakdownStatus"),
     panelDraws: Number(data.get("panelDraws")), panelWins: Number(data.get("panelWins")), mobileDraws: Number(data.get("mobileDraws")), mobileWins: Number(data.get("mobileWins")), unknownPrizeCount: Number(data.get("unknownPrizeCount")),
     prizes: [...data.entries()].filter(([key]) => key.startsWith("prize:")).map(([key, value]) => {
       const [, acquisitionType, prizeCategoryId] = key.split(":");
       return { acquisitionType, prizeCategoryId, quantity: Number(value) };
-    }).filter((item) => item.quantity > 0 && (item.acquisitionType !== "guaranteed" || elements.guaranteedToggle.checked)),
+    }).filter((item) => item.quantity > 0),
     itemBreakdowns,
-    turnstileToken: data.get("cf-turnstile-response") ?? "",
+    turnstileToken: currentTurnstileToken(),
   };
 }
 
@@ -650,12 +681,22 @@ async function submitReport(event) {
   const payload = formPayload();
   const errors = validateForm(payload);
   if (errors.length) { elements.formErrors.hidden = false; elements.formErrors.innerHTML = `<strong>入力内容をご確認ください</strong><ul>${errors.map((error) => `<li>${escapeHtml(error)}</li>`).join("")}</ul>`; elements.formErrors.focus(); return; }
+  if (!payload.turnstileToken) {
+    elements.formErrors.hidden = false;
+    elements.formErrors.textContent = "投稿確認がまだ完了していません。確認が完了してから、もう一度投稿してください。";
+    elements.formErrors.focus();
+    await ensureTurnstile({ reset: true });
+    return;
+  }
   const submit = elements.reportForm.querySelector('[type="submit"]');
   submit.disabled = true; elements.formStatus.textContent = "送信しています…";
   try {
     const response = await fetch("/api/reports", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json", ...await authHeaders() }, body: JSON.stringify(payload) });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.errors?.join(" ") ?? result.error ?? "投稿を送信できませんでした。");
+    if (!response.ok) {
+      if (result.code === "turnstile_failed") await ensureTurnstile({ reset: true });
+      throw new Error(result.errors?.join(" ") ?? result.error ?? "投稿を送信できませんでした。");
+    }
     state.posting = result.posting;
     elements.formErrors.hidden = true;
     elements.formStatus.textContent = result.status === "pending"
@@ -663,11 +704,10 @@ async function submitReport(event) {
       : "投稿ありがとうございました。集計への反映には少し時間がかかる場合があります。";
     if (result.posting) elements.postingStatus.textContent = `本日はあと${result.posting.remainingToday}件投稿できます。`;
     elements.reportForm.reset();
-    elements.guaranteedPrizeFields.hidden = true;
     elements.reportCampaign.value = state.campaign?.id ?? "";
     updateReportStoreOptions("");
     resetItemBreakdowns();
-    if (window.turnstile && turnstileWidgetId !== null) window.turnstile.reset(turnstileWidgetId);
+    if (window.turnstile && turnstileWidgetId !== null) await ensureTurnstile({ reset: true });
     setTimeout(() => closeReport(), 1300);
   } catch (error) { elements.formErrors.hidden = false; elements.formErrors.textContent = error.message; elements.formStatus.textContent = ""; }
   finally { submit.disabled = false; }
@@ -765,13 +805,6 @@ function bindEvents() {
   elements.reportForm.addEventListener("input", (event) => {
     const category = event.target.closest("[data-prize-category]")?.dataset.prizeCategory;
     if (category) updateItemBreakdownStatus(category);
-  });
-  elements.guaranteedToggle.addEventListener("change", () => {
-    elements.guaranteedPrizeFields.hidden = !elements.guaranteedToggle.checked;
-    if (!elements.guaranteedToggle.checked) {
-      elements.guaranteedPrizeFields.querySelectorAll("input").forEach((input) => { input.value = "0"; });
-      resetItemBreakdowns();
-    }
   });
   document.addEventListener("click", (event) => {
     const reportButton = event.target.closest("[data-open-report]");
