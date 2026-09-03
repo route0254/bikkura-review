@@ -42,28 +42,39 @@ export async function onRequestGet({ request, env }) {
       `).bind(campaign.id).all(),
       env.DB.prepare(`
         SELECT
-          scs.store_id,
-          scs.report_count,
-          scs.total_panel_draws + scs.total_mobile_draws AS total_draws,
-          scs.total_panel_wins + scs.total_mobile_wins AS total_wins,
-          scs.total_prize_count,
+          store.id AS store_id,
+          COALESCE(scs.report_count, 0) AS report_count,
+          COALESCE(scs.total_panel_draws + scs.total_mobile_draws, 0) AS total_draws,
+          COALESCE(scs.total_panel_wins + scs.total_mobile_wins, 0) AS total_wins,
+          COALESCE(scs.total_prize_count, 0) AS total_prize_count,
+          COALESCE(external.external_collection_count, 0) AS external_collection_count,
           COALESCE(complete.complete_report_count, 0) AS complete_report_count,
           latest.latest_report_at
-        FROM store_campaign_stats scs
+        FROM stores store
+        LEFT JOIN store_campaign_stats scs
+          ON scs.store_id = store.id AND scs.campaign_id = ?
+        LEFT JOIN (
+          SELECT store_id, COUNT(*) AS external_collection_count
+          FROM external_reports
+          WHERE campaign_id = ? AND source_type = 'external'
+            AND status IN ('active', 'pending') AND store_id IS NOT NULL
+          GROUP BY store_id
+        ) external ON external.store_id = store.id
         LEFT JOIN (
           SELECT store_id, COUNT(*) AS complete_report_count
           FROM active_draw_prize_reports
           WHERE campaign_id = ?
           GROUP BY store_id
-        ) complete ON complete.store_id = scs.store_id
+        ) complete ON complete.store_id = store.id
         LEFT JOIN (
           SELECT store_id, MAX(created_at) AS latest_report_at
           FROM active_user_reports
           WHERE campaign_id = ?
           GROUP BY store_id
-        ) latest ON latest.store_id = scs.store_id
-        WHERE scs.campaign_id = ? AND scs.report_count > 0
-      `).bind(campaign.id, campaign.id, campaign.id).all(),
+        ) latest ON latest.store_id = store.id
+        WHERE store.active = 1
+          AND (COALESCE(scs.report_count, 0) > 0 OR COALESCE(external.external_collection_count, 0) > 0)
+      `).bind(campaign.id, campaign.id, campaign.id, campaign.id).all(),
       env.DB.prepare(`
         SELECT scps.store_id, pc.id, pc.name, scps.reported_quantity AS quantity
         FROM store_campaign_prize_stats scps
@@ -106,6 +117,7 @@ export async function onRequestGet({ request, env }) {
         return {
           storeId: row.store_id,
           ...mapSummary({ ...row, complete_prize_count: storePrizes.reduce((sum, prize) => sum + prize.quantity, 0) }),
+          externalCollectionCount: Number(row.external_collection_count ?? 0),
           prizes: storePrizes,
           latestReportAt: row.latest_report_at,
         };

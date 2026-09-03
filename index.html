@@ -114,9 +114,9 @@
           <label class="field sort-field" for="store-sort">
             <span>並び順</span>
             <select id="store-sort">
-              <option value="default">おすすめ順</option>
+              <option value="default">投稿・外部情報が多い順</option>
               <option value="name">店舗名順</option>
-              <option value="reports">投稿数順</option>
+              <option value="reports">サイト内投稿数順</option>
               <option value="draws">抽選回数順</option>
               <option value="recent">最近の投稿順</option>
               <option value="nearest">現在地から近い順</option>
@@ -128,6 +128,7 @@
             <small id="location-status" role="status" aria-live="polite"></small>
           </div>
         </div>
+        <p class="section-note section-note-left">初期表示は、サイト内投稿と外部から収集した参考情報の件数が多い店舗順です。外部情報は統計やランキングには含めていません。</p>
         <div id="store-status" class="status-message" role="status" aria-live="polite">店舗データを読み込んでいます。</div>
         <div id="store-list" class="store-grid"></div>
         <button id="store-load-more" class="button button-secondary store-load-more" type="button" hidden>さらに表示</button>

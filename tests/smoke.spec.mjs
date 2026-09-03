@@ -32,6 +32,7 @@ test.afterEach(async ({ page }) => {
 test("トップページを表示し、店舗を検索・絞り込みできる", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "寄せられた結果" })).toBeVisible();
+  await expect(page.locator(".store-card h3").first()).toHaveText("北本店");
   await page.getByLabel("店舗名・地名").fill("新宿");
   await expect(page.getByRole("heading", { name: "新宿靖国通り店" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "なんば日本橋店" })).toBeHidden();
@@ -72,6 +73,27 @@ test("全国店舗を段階表示し、一覧の全店舗を検索できる", as
   await page.getByLabel("店舗名・地名").fill("旭川4条通");
   await expect(page.getByRole("heading", { name: "旭川4条通店" })).toBeVisible();
   await expect(page.locator("#store-count")).toHaveText("1店舗を表示");
+});
+
+test("初期表示をサイト内投稿と外部収集の合計件数順にする", async ({ page }) => {
+  await page.route("**/api/stats?*", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      reportCount: 2, totalDraws: 10, totalWins: 1, totalPrizeCount: 1,
+      completeReportCount: 1, completePrizeCount: 1, prizes: [], usage: [],
+      coverage: { reportingStoreCount: 1, totalStoreCount: 552, reportingPrefectureCount: 1, totalPrefectureCount: 47 },
+      stores: [
+        { storeId: "kura-648", reportCount: 2, externalCollectionCount: 0, totalDraws: 10, totalWins: 1, totalPrizeCount: 1, completeReportCount: 1, completePrizeCount: 1, prizes: [] },
+        { storeId: "kura-660", reportCount: 0, externalCollectionCount: 3, totalDraws: 0, totalWins: 0, totalPrizeCount: 0, completeReportCount: 0, completePrizeCount: 0, prizes: [] },
+      ],
+    }),
+  }));
+  await page.goto("/");
+  await expect(page.locator("#store-sort")).toHaveValue("default");
+  await expect(page.locator("#store-sort option:checked")).toHaveText("投稿・外部情報が多い順");
+  await expect(page.locator(".store-card h3").nth(0)).toHaveText("メモリアル店 なんば千日前");
+  await expect(page.locator(".store-card h3").nth(1)).toHaveText("船橋フェイス店");
 });
 
 test("店舗詳細を開閉し、フォーカスを戻す", async ({ page }) => {
@@ -218,6 +240,7 @@ test("実DBの外部seedを取得しても全国統計とランキングは0件�
   expect(external.items).toHaveLength(0);
   expect(stats.reportCount).toBe(0);
   expect(stats.totalPrizeCount).toBe(0);
+  expect(stats.stores.find((store) => store.storeId === "kura-87")).toMatchObject({ reportCount: 0, externalCollectionCount: 2 });
   expect(ranking.items).toEqual([]);
 });
 

@@ -138,7 +138,7 @@ async function loadStoreMaster() {
 }
 
 function getStats(store) {
-  return store.stats ?? { reportCount: 0, totalDraws: 0, totalWins: 0, totalPrizeCount: 0, completeReportCount: 0, completePrizeCount: 0 };
+  return store.stats ?? { reportCount: 0, externalCollectionCount: 0, totalDraws: 0, totalWins: 0, totalPrizeCount: 0, completeReportCount: 0, completePrizeCount: 0 };
 }
 
 function todayInJapan() {
@@ -757,7 +757,7 @@ async function activateCampaign(campaignId, options = {}) {
   const sparseStats = new Map((stats?.stores ?? []).map((entry) => [entry.storeId, entry]));
   state.stores = state.stores.map((store) => ({
     ...store,
-    stats: sparseStats.get(store.id) ?? { reportCount: 0, totalDraws: 0, totalWins: 0, totalPrizeCount: 0, completeReportCount: 0, completePrizeCount: 0, prizes: [], latestReportAt: null },
+    stats: sparseStats.get(store.id) ?? { reportCount: 0, externalCollectionCount: 0, totalDraws: 0, totalWins: 0, totalPrizeCount: 0, completeReportCount: 0, completePrizeCount: 0, prizes: [], latestReportAt: null },
   }));
   state.stats = stats ?? { reportCount: 0, totalDraws: 0, totalWins: 0, totalPrizeCount: 0, completeReportCount: 0, completePrizeCount: 0, prizes: campaign.prizeCategories?.map((prize) => ({ id: prize.id, name: prize.name, quantity: 0 })) ?? [], usage: [], stores: [], coverage: { reportingStoreCount: 0, totalStoreCount: state.stores.length, reportingPrefectureCount: 0, totalPrefectureCount: 47 } };
   state.rankingLoaded = false;
