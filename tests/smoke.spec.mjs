@@ -94,6 +94,10 @@ test("初期表示をサイト内投稿と外部収集の合計件数順にす�
   await expect(page.locator("#store-sort option:checked")).toHaveText("投稿・外部情報が多い順");
   await expect(page.locator(".store-card h3").nth(0)).toHaveText("メモリアル店 なんば千日前");
   await expect(page.locator(".store-card h3").nth(1)).toHaveText("船橋フェイス店");
+  await expect(page.locator(".store-card").nth(0)).toContainText("3 件の情報");
+  await expect(page.locator(".store-card").nth(0)).toContainText("サイト内投稿 0件・外部収集 3件");
+  await expect(page.locator(".store-card").nth(1)).toContainText("2 件の情報");
+  await expect(page.locator(".store-card").nth(1)).toContainText("サイト内投稿 2件・外部収集 0件");
 });
 
 test("店舗詳細を開閉し、フォーカスを戻す", async ({ page }) => {
@@ -244,6 +248,17 @@ test("実DBの外部seedを取得しても全国統計とランキングは0件�
   expect(ranking.items).toEqual([]);
 });
 
+test("外部収集件数があり出典確認中の場合は店舗詳細で状態を案内する", async ({ page }) => {
+  await page.goto("/");
+  const firstCard = page.locator(".store-card").first();
+  await expect(firstCard.getByRole("heading")).toHaveText("北本店");
+  await expect(firstCard).toContainText("2 件の情報");
+  await expect(firstCard).toContainText("サイト内投稿 0件・外部収集 2件");
+  await firstCard.getByRole("button", { name: /結果を見る/ }).click();
+  await expect(page.locator("#external-reports")).toContainText("外部収集情報が2件あります");
+  await expect(page.locator("#external-reports")).toContainText("出典確認中");
+});
+
 test("本人投稿APIは未認証アクセスを拒否する", async ({ request }) => {
   const [list, withdraw, restore] = await Promise.all([
     request.get("/api/me/reports"),
@@ -265,7 +280,7 @@ test("投稿0件とサンプル不足の店舗カードを中立的に表示す�
   await page.getByLabel("店舗名・地名").fill("新宿靖国通り");
   await expect(page.locator(".store-card")).toContainText("まだデータが少ないです");
   await page.getByLabel("店舗名・地名").fill("なんば日本橋");
-  await expect(page.locator(".store-card")).toContainText("まだ投稿がありません");
+  await expect(page.locator(".store-card")).toContainText("まだ情報がありません");
   await expect(page.getByRole("button", { name: /結果を投稿/ }).last()).toBeVisible();
 });
 
@@ -386,7 +401,13 @@ test("投稿時に合計景品を送信し、Turnstile失敗時は確認を更�
   await page.getByLabel("景品の内訳をすべて入力できていますか？ 必須").selectOption("complete");
   await page.locator("#prize-total\\:chiikawa-2026-figure").fill("2");
   await page.getByRole("button", { name: "この内容で投稿" }).click();
-  await expect(page.getByRole("alert")).toContainText("投稿確認を更新");
+  const formError = page.getByRole("alert");
+  await expect(formError).toContainText("投稿確認を更新");
+  await expect(formError).toBeFocused();
+  await expect.poll(() => formError.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return rect.top >= 0 && rect.bottom <= window.innerHeight;
+  })).toBe(true);
   expect(submitted.prizeInputMode).toBe("total");
   expect(submitted.guaranteedPrizeCount).toBe(1);
   expect(submitted.prizes).toEqual([{ acquisitionType: "total", prizeCategoryId: "chiikawa-2026-figure", quantity: 2 }]);

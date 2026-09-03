@@ -224,13 +224,16 @@ function renderStores() {
   }
   elements.storeList.innerHTML = visibleStores.map((store) => {
     const stats = getStats(store);
+    const directReportCount = Number(stats.reportCount ?? 0);
+    const externalCollectionCount = Number(stats.externalCollectionCount ?? 0);
+    const informationCount = directReportCount + externalCollectionCount;
     const enoughPrizeData = hasEnoughPrizeData(stats);
     const shares = prizeShares(stats.prizes, stats.completePrizeCount);
     const prizeSummary = enoughPrizeData
       ? `<div class="store-prize-summary" aria-label="景品報告割合">${shares.map((prize) => `<span>${escapeHtml(prize.name)} <strong>${(prize.share * 100).toFixed(0)}%</strong></span>`).join("")}</div>`
-      : `<p class="store-data-note">${stats.reportCount === 0 ? "まだ投稿がありません。最初の結果を教えてください。" : "まだデータが少ないです。"}</p>`;
-    const action = `<div class="store-card-actions"><button class="store-open" type="button" data-store-id="${escapeHtml(store.id)}">結果を見る →</button>${stats.reportCount === 0 ? `<button class="store-open store-post" type="button" data-open-report data-store="${escapeHtml(store.id)}">結果を投稿</button>` : ""}</div>`;
-    return `<article class="store-card"><h3>${escapeHtml(store.name)}</h3><p class="store-location">${escapeHtml(store.prefecture)} ${escapeHtml(store.city)}</p><div class="store-meta"><span><strong>${Number(stats.reportCount).toLocaleString("ja-JP")}</strong> 投稿</span><span><strong>${Number(stats.totalDraws).toLocaleString("ja-JP")}</strong> 抽選</span></div>${prizeSummary}${action}</article>`;
+      : `<p class="store-data-note">${informationCount === 0 ? "まだ情報がありません。最初の結果を教えてください。" : externalCollectionCount > 0 && directReportCount === 0 ? "外部収集情報があります。詳細は出典確認済みの情報のみ表示します。" : "まだデータが少ないです。"}</p>`;
+    const action = `<div class="store-card-actions"><button class="store-open" type="button" data-store-id="${escapeHtml(store.id)}">結果を見る →</button>${directReportCount === 0 ? `<button class="store-open store-post" type="button" data-open-report data-store="${escapeHtml(store.id)}">結果を投稿</button>` : ""}</div>`;
+    return `<article class="store-card"><h3>${escapeHtml(store.name)}</h3><p class="store-location">${escapeHtml(store.prefecture)} ${escapeHtml(store.city)}</p><div class="store-meta"><span><strong>${informationCount.toLocaleString("ja-JP")}</strong> 件の情報</span><span><strong>${Number(stats.totalDraws).toLocaleString("ja-JP")}</strong> 抽選</span></div><p class="store-source-counts">サイト内投稿 ${directReportCount.toLocaleString("ja-JP")}件・外部収集 ${externalCollectionCount.toLocaleString("ja-JP")}件</p>${prizeSummary}${action}</article>`;
   }).join("");
   updatePostingAvailability();
 }
@@ -287,7 +290,7 @@ async function openStore(storeId, trigger) {
   updatePostingAvailability();
   const campaignQuery = `campaign=${encodeURIComponent(state.campaign?.id ?? "")}`;
   fetchJson(`/api/stores/${encodeURIComponent(storeId)}/external-reports?limit=10&${campaignQuery}`)
-    .then((external) => { if (state.selectedStoreId === storeId) renderExternalReports(external.items ?? []); })
+    .then((external) => { if (state.selectedStoreId === storeId) renderExternalReports(external.items ?? [], stats.externalCollectionCount); })
     .catch((error) => {
       console.error("外部参考情報の表示に失敗しました。", error);
       if (state.selectedStoreId === storeId) renderExternalReports(null);
@@ -300,7 +303,7 @@ async function openStore(storeId, trigger) {
   } catch { /* Static preview keeps the verified local data. */ }
 }
 
-function renderExternalReports(reports) {
+function renderExternalReports(reports, collectedCount = 0) {
   const target = document.querySelector("#external-reports");
   if (!target) return;
   if (reports === null) {
@@ -308,19 +311,24 @@ function renderExternalReports(reports) {
     return;
   }
   const publicReports = reports.filter((report) => report.externalUrl);
+  const pendingCount = Math.max(0, Number(collectedCount ?? 0) - publicReports.length);
   if (!publicReports.length) {
-    target.innerHTML = `<p class="section-note section-note-left">この店舗の外部参考情報はありません。</p>`;
+    target.innerHTML = pendingCount > 0
+      ? `<p class="section-note section-note-left">外部収集情報が${pendingCount.toLocaleString("ja-JP")}件あります。現在は出典確認中のため、詳細はまだ公開していません。</p>`
+      : `<p class="section-note section-note-left">この店舗の外部参考情報はありません。</p>`;
     return;
   }
   const precisionLabels = { complete: "内訳確認済み", partial: "一部情報のみ", mention_only: "言及のみ" };
   const usageLabels = { normal: "通常", plus: "ビッくらポン！プラス", unknown: "利用区分不明" };
-  target.innerHTML = publicReports.map((report) => {
+  const publicCards = publicReports.map((report) => {
     const date = report.visitDate ? report.visitDate.replaceAll("-", "/") : report.visitDateLabel || "来店日不明";
     const categories = (report.prizes ?? []).map((prize) => `<li><span>${escapeHtml(prize.name)}</span><strong>${escapeHtml(formatExternalQuantity(prize.quantity, prize.quantityKind))}</strong></li>`).join("");
     const items = (report.items ?? []).map((item) => `<li><span>${escapeHtml(item.prizeCategoryName)}・${escapeHtml(item.name)}</span><strong>${escapeHtml(formatExternalQuantity(item.quantity, item.quantityKind))}</strong></li>`).join("");
     const sourceLink = `<a class="external-source-link" href="${escapeHtml(report.externalUrl)}" target="_blank" rel="noopener noreferrer">出典を見る<span aria-hidden="true"> ↗</span></a>`;
     return `<article class="external-report-card"><header><div><strong>${escapeHtml(report.externalPlatformLabel ?? EXTERNAL_PLATFORM_LABELS[report.externalPlatform] ?? "その他")}</strong><time>${escapeHtml(date)}</time></div><span class="external-precision">${escapeHtml(precisionLabels[report.resultPrecision] ?? "確認できた範囲")}</span></header><dl class="external-summary"><div><dt>景品総数</dt><dd>${escapeHtml(formatExternalQuantity(report.totalPrizes, report.totalPrizesKind))}</dd></div><div><dt>利用区分</dt><dd>${escapeHtml(usageLabels[report.usageType] ?? usageLabels.unknown)}</dd></div></dl>${categories ? `<ul class="external-breakdown">${categories}</ul>` : ""}${items ? `<div class="external-items"><span>確認できた個別景品</span><ul>${items}</ul></div>` : ""}<footer>${sourceLink}</footer></article>`;
   }).join("");
+  const pendingNote = pendingCount > 0 ? `<p class="section-note section-note-left">このほか、出典確認中の外部収集情報が${pendingCount.toLocaleString("ja-JP")}件あります。</p>` : "";
+  target.innerHTML = `${publicCards}${pendingNote}`;
 }
 
 function updateStoreDialogStatsV2(detail) {
@@ -680,11 +688,14 @@ async function submitReport(event) {
   event.preventDefault();
   const payload = formPayload();
   const errors = validateForm(payload);
-  if (errors.length) { elements.formErrors.hidden = false; elements.formErrors.innerHTML = `<strong>入力内容をご確認ください</strong><ul>${errors.map((error) => `<li>${escapeHtml(error)}</li>`).join("")}</ul>`; elements.formErrors.focus(); return; }
+  if (errors.length) {
+    elements.formErrors.innerHTML = `<strong>入力内容をご確認ください</strong><ul>${errors.map((error) => `<li>${escapeHtml(error)}</li>`).join("")}</ul>`;
+    revealFormErrors();
+    return;
+  }
   if (!payload.turnstileToken) {
-    elements.formErrors.hidden = false;
     elements.formErrors.textContent = "投稿確認がまだ完了していません。確認が完了してから、もう一度投稿してください。";
-    elements.formErrors.focus();
+    revealFormErrors();
     await ensureTurnstile({ reset: true });
     return;
   }
@@ -709,8 +720,21 @@ async function submitReport(event) {
     resetItemBreakdowns();
     if (window.turnstile && turnstileWidgetId !== null) await ensureTurnstile({ reset: true });
     setTimeout(() => closeReport(), 1300);
-  } catch (error) { elements.formErrors.hidden = false; elements.formErrors.textContent = error.message; elements.formStatus.textContent = ""; }
+  } catch (error) {
+    elements.formErrors.textContent = error.message;
+    elements.formStatus.textContent = "";
+    revealFormErrors();
+  }
   finally { submit.disabled = false; }
+}
+
+function revealFormErrors() {
+  elements.formErrors.hidden = false;
+  elements.formErrors.focus({ preventScroll: true });
+  elements.formErrors.scrollIntoView({
+    behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    block: "start",
+  });
 }
 
 async function shareStore() {

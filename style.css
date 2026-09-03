@@ -125,6 +125,7 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
 .store-location { margin: 5px 0 14px; color: var(--muted); font-size: .84rem; }
 .store-meta { display: flex; gap: 15px; margin-top: auto; color: var(--muted); font-size: .78rem; }
 .store-meta strong { color: var(--text); font-size: 1rem; }
+.store-source-counts { margin: 4px 0 0; color: var(--muted); font-size: .7rem; }
 .data-state { display: inline-block; margin-top: 11px; color: var(--lavender); font-size: .76rem; font-weight: 700; }
 .store-prize-summary { display: grid; gap: 2px; margin-top: 10px; color: var(--muted); font-size: .72rem; }
 .store-prize-summary span { display: flex; justify-content: space-between; gap: 10px; }
