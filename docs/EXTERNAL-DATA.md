@@ -26,7 +26,7 @@
 
 1. `seed/external-reports.json` を編集する
 2. 店舗・キャンペーン・カテゴリ・個別景品のIDを既存マスタと照合する
-3. 元ページを確認できる場合は `externalUrl` を保存して `status: "active"` にする。未確認なら `externalUrl: null` かつ `status: "pending"` にする
+3. 元ページを確認できる場合は `externalUrl` を保存する。URL確認中でも構造化結果を公開する場合は `externalUrl: null` かつ `status: "active"` にし、内容自体も未確認なら `status: "pending"` にする
 4. `pnpm run seed:external` で検証・SQL生成・ローカル投入する
 5. 本番テスト後、生成SQLをWranglerでリモートD1へ投入する
 
@@ -34,4 +34,4 @@
 
 ## 非表示
 
-誤情報、店舗取り違え、リンク切れ、元投稿削除、本人からの申し出があった場合は対象IDの `status` を `hidden` にして再投入します。物理削除は原則行いません。店舗詳細APIは `status = 'active'` かつ出典URLを確認済みの行だけを返し、URL未登録の案内は一般画面へ表示しません。
+誤情報、店舗取り違え、リンク切れ、元投稿削除、本人からの申し出があった場合は対象IDの `status` を `hidden` にして再投入します。物理削除は原則行いません。店舗詳細APIは `status = 'active'` の行だけを返し、出典URLが未登録の場合は一般画面に「出典URL確認中」と表示します。

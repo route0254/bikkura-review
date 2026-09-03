@@ -10,7 +10,7 @@ INSERT INTO external_reports (
   'external-20260821-funabashi-face-x', 'external', 'kura-648', 'chiikawa-kurasushi-2026-summer', '2026-08-21', NULL,
   'x', NULL, '2026-09-03', 'A',
   'partial', 'unknown', NULL, NULL, NULL, NULL,
-  14, 'exact', '景品総数とフィギュア0個を確認。その他カテゴリの内訳は不明。', 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+  14, 'exact', '景品総数とフィギュア0個を確認。その他カテゴリの内訳は不明。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT(id) DO UPDATE SET
   source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
   visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
@@ -34,7 +34,7 @@ INSERT INTO external_reports (
   'external-20260823-makuhari-x', 'external', 'kura-602', 'chiikawa-kurasushi-2026-summer', '2026-08-23', NULL,
   'x', NULL, '2026-09-03', 'A',
   'partial', 'unknown', NULL, NULL, NULL, NULL,
-  7, 'exact', '景品総数とフィギュア数を確認。その他カテゴリの内訳は不明。', 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+  7, 'exact', '景品総数とフィギュア数を確認。その他カテゴリの内訳は不明。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT(id) DO UPDATE SET
   source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
   visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
@@ -58,7 +58,7 @@ INSERT INTO external_reports (
   'external-20260821-namba-sennichimae-x', 'external', 'kura-660', 'chiikawa-kurasushi-2026-summer', '2026-08-21', NULL,
   'x', NULL, '2026-09-03', 'A',
   'complete', 'unknown', NULL, NULL, NULL, NULL,
-  9, 'exact', '景品総数、全カテゴリ数、記載された個別景品数が一致。', 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+  9, 'exact', '景品総数、全カテゴリ数、記載された個別景品数が一致。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT(id) DO UPDATE SET
   source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
   visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
@@ -92,7 +92,7 @@ INSERT INTO external_reports (
   'external-before-20260903-koiwa-x', 'external', 'kura-560', 'chiikawa-kurasushi-2026-summer', NULL, '2026年9月3日以前',
   'x', NULL, '2026-09-03', 'A',
   'partial', 'unknown', NULL, NULL, NULL, NULL,
-  10, 'exact', '候補記載の小岩店を現行店舗マスタの小岩駅前店へ紐付け。来店日は確認できず。景品総数とフィギュア0個を確認。', 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+  10, 'exact', '候補記載の小岩店を現行店舗マスタの小岩駅前店へ紐付け。来店日は確認できず。景品総数とフィギュア0個を確認。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT(id) DO UPDATE SET
   source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
   visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
@@ -116,7 +116,7 @@ INSERT INTO external_reports (
   'external-20260821-kitamoto-tabelog-1', 'external', 'kura-87', 'chiikawa-kurasushi-2026-summer', '2026-08-21', NULL,
   'tabelog', NULL, '2026-09-03', 'B',
   'partial', 'plus', NULL, NULL, NULL, NULL,
-  NULL, 'unknown', 'プラス利用とフィギュア1個を確認。景品総数は不明。', 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+  NULL, 'unknown', 'プラス利用とフィギュア1個を確認。景品総数は不明。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT(id) DO UPDATE SET
   source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
   visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
@@ -140,7 +140,7 @@ INSERT INTO external_reports (
   'external-around-20260823-kitamoto-tabelog-2', 'external', 'kura-87', 'chiikawa-kurasushi-2026-summer', NULL, '2026年8月23日頃',
   'tabelog', NULL, '2026-09-03', 'B',
   'partial', 'unknown', NULL, NULL, NULL, NULL,
-  NULL, 'unknown', '景品があったこととフィギュア0個を確認。景品総数と正確な来店日は不明。', 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+  NULL, 'unknown', '景品があったこととフィギュア0個を確認。景品総数と正確な来店日は不明。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT(id) DO UPDATE SET
   source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
   visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
@@ -164,7 +164,7 @@ INSERT INTO external_reports (
   'external-202608-ikebukuro-west-tabelog', 'external', 'kura-601', 'chiikawa-kurasushi-2026-summer', NULL, '2026年8月',
   'tabelog', NULL, '2026-09-03', 'B',
   'partial', 'unknown', NULL, NULL, NULL, NULL,
-  NULL, 'unknown', 'ビッくらポン挑戦4回の記載あり。抽選経路・当たり数は推定せず、フィギュア1個以上のみ採用。', 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+  NULL, 'unknown', 'ビッくらポン挑戦4回の記載あり。抽選経路・当たり数は推定せず、フィギュア1個以上のみ採用。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT(id) DO UPDATE SET
   source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
   visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
@@ -188,7 +188,7 @@ INSERT INTO external_reports (
   'external-202608-iruma-tabelog', 'external', 'kura-86', 'chiikawa-kurasushi-2026-summer', NULL, '2026年8月',
   'tabelog', NULL, '2026-09-03', 'B',
   'partial', 'unknown', NULL, NULL, NULL, NULL,
-  NULL, 'unknown', 'カプセル付きメニュー由来の可能性あり。通常抽選とは断定しない。', 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+  NULL, 'unknown', 'カプセル付きメニュー由来の可能性あり。通常抽選とは断定しない。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT(id) DO UPDATE SET
   source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
   visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
@@ -213,7 +213,7 @@ INSERT INTO external_reports (
   'external-before-20260831-sakura-shukugawa-x', 'external', 'kura-287', 'chiikawa-kurasushi-2026-summer', NULL, '2026年8月末以前',
   'x', NULL, '2026-09-03', 'B',
   'partial', 'unknown', NULL, NULL, NULL, NULL,
-  NULL, 'unknown', '利用金額約15,000円の記載あり。景品数は推定せず、フィギュア0個のみ採用。', 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+  NULL, 'unknown', '利用金額約15,000円の記載あり。景品数は推定せず、フィギュア0個のみ採用。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT(id) DO UPDATE SET
   source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
   visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,

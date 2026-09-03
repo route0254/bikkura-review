@@ -21,7 +21,7 @@ export async function onRequestGet({ request, env, params }) {
         total_prizes, total_prizes_kind
       FROM external_reports
       WHERE store_id = ? AND campaign_id = ? AND source_type = 'external'
-        AND status = 'active' AND external_url IS NOT NULL
+        AND status = 'active'
       ORDER BY COALESCE(visit_date, external_observed_at) DESC, created_at DESC, id DESC
       LIMIT ?
     `).bind(params.id, campaign.id, limit).all()).results;

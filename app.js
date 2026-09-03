@@ -231,7 +231,7 @@ function renderStores() {
     const shares = prizeShares(stats.prizes, stats.completePrizeCount);
     const prizeSummary = enoughPrizeData
       ? `<div class="store-prize-summary" aria-label="景品報告割合">${shares.map((prize) => `<span>${escapeHtml(prize.name)} <strong>${(prize.share * 100).toFixed(0)}%</strong></span>`).join("")}</div>`
-      : `<p class="store-data-note">${informationCount === 0 ? "まだ情報がありません。最初の結果を教えてください。" : externalCollectionCount > 0 && directReportCount === 0 ? "外部収集情報があります。詳細は出典確認済みの情報のみ表示します。" : "まだデータが少ないです。"}</p>`;
+      : `<p class="store-data-note">${informationCount === 0 ? "まだ情報がありません。最初の結果を教えてください。" : externalCollectionCount > 0 && directReportCount === 0 ? "外部収集情報があります。「結果を見る」から確認できます。" : "まだデータが少ないです。"}</p>`;
     const action = `<div class="store-card-actions"><button class="store-open" type="button" data-store-id="${escapeHtml(store.id)}">結果を見る →</button>${directReportCount === 0 ? `<button class="store-open store-post" type="button" data-open-report data-store="${escapeHtml(store.id)}">結果を投稿</button>` : ""}</div>`;
     return `<article class="store-card"><h3>${escapeHtml(store.name)}</h3><p class="store-location">${escapeHtml(store.prefecture)} ${escapeHtml(store.city)}</p><div class="store-meta"><span><strong>${informationCount.toLocaleString("ja-JP")}</strong> 件の情報</span><span><strong>${Number(stats.totalDraws).toLocaleString("ja-JP")}</strong> 抽選</span></div><p class="store-source-counts">サイト内投稿 ${directReportCount.toLocaleString("ja-JP")}件・外部収集 ${externalCollectionCount.toLocaleString("ja-JP")}件</p>${prizeSummary}${action}</article>`;
   }).join("");
@@ -310,7 +310,7 @@ function renderExternalReports(reports, collectedCount = 0) {
     target.innerHTML = `<p class="section-note section-note-left">外部参考情報を読み込めませんでした。時間をおいて再度お試しください。</p>`;
     return;
   }
-  const publicReports = reports.filter((report) => report.externalUrl);
+  const publicReports = reports;
   const pendingCount = Math.max(0, Number(collectedCount ?? 0) - publicReports.length);
   if (!publicReports.length) {
     target.innerHTML = pendingCount > 0
@@ -324,7 +324,9 @@ function renderExternalReports(reports, collectedCount = 0) {
     const date = report.visitDate ? report.visitDate.replaceAll("-", "/") : report.visitDateLabel || "来店日不明";
     const categories = (report.prizes ?? []).map((prize) => `<li><span>${escapeHtml(prize.name)}</span><strong>${escapeHtml(formatExternalQuantity(prize.quantity, prize.quantityKind))}</strong></li>`).join("");
     const items = (report.items ?? []).map((item) => `<li><span>${escapeHtml(item.prizeCategoryName)}・${escapeHtml(item.name)}</span><strong>${escapeHtml(formatExternalQuantity(item.quantity, item.quantityKind))}</strong></li>`).join("");
-    const sourceLink = `<a class="external-source-link" href="${escapeHtml(report.externalUrl)}" target="_blank" rel="noopener noreferrer">出典を見る<span aria-hidden="true"> ↗</span></a>`;
+    const sourceLink = report.externalUrl
+      ? `<a class="external-source-link" href="${escapeHtml(report.externalUrl)}" target="_blank" rel="noopener noreferrer">出典を見る<span aria-hidden="true"> ↗</span></a>`
+      : `<span class="external-source-missing">出典URL確認中</span>`;
     return `<article class="external-report-card"><header><div><strong>${escapeHtml(report.externalPlatformLabel ?? EXTERNAL_PLATFORM_LABELS[report.externalPlatform] ?? "その他")}</strong><time>${escapeHtml(date)}</time></div><span class="external-precision">${escapeHtml(precisionLabels[report.resultPrecision] ?? "確認できた範囲")}</span></header><dl class="external-summary"><div><dt>景品総数</dt><dd>${escapeHtml(formatExternalQuantity(report.totalPrizes, report.totalPrizesKind))}</dd></div><div><dt>利用区分</dt><dd>${escapeHtml(usageLabels[report.usageType] ?? usageLabels.unknown)}</dd></div></dl>${categories ? `<ul class="external-breakdown">${categories}</ul>` : ""}${items ? `<div class="external-items"><span>確認できた個別景品</span><ul>${items}</ul></div>` : ""}<footer>${sourceLink}</footer></article>`;
   }).join("");
   const pendingNote = pendingCount > 0 ? `<p class="section-note section-note-left">このほか、出典確認中の外部収集情報が${pendingCount.toLocaleString("ja-JP")}件あります。</p>` : "";

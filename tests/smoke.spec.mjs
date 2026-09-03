@@ -193,6 +193,12 @@ test("店舗詳細で通常投稿と外部参考情報を分離し、0・不明�
         prizes: [{ id: "figure", name: "フィギュア", quantity: 1, quantityKind: "at_least" }],
         items: [{ id: "figure-chiikawa", name: "ちいかわ", prizeCategoryName: "フィギュア", quantity: 1, quantityKind: "at_least" }],
       },
+      {
+        id: "external-no-url", sourceType: "external", visitDate: "2026-08-24", visitDateLabel: null,
+        externalPlatform: "blog", externalPlatformLabel: "ブログ", externalUrl: null,
+        resultPrecision: "partial", usageType: "unknown", totalPrizes: 2, totalPrizesKind: "exact",
+        prizes: [{ id: "figure", name: "フィギュア", quantity: 0, quantityKind: "exact" }], items: [],
+      },
     ] }),
   }));
   await page.goto("/");
@@ -207,6 +213,8 @@ test("店舗詳細で通常投稿と外部参考情報を分離し、0・不明�
   await expect(external).toContainText("1個以上");
   await expect(external).toContainText("一部情報のみ");
   await expect(external).toContainText("2026年8月23日頃");
+  await expect(external).toContainText("出典URL確認中");
+  await expect(page.getByRole("link", { name: /出典を見る/ })).toHaveCount(2);
   const source = page.getByRole("link", { name: /出典を見る/ }).first();
   await expect(source).toHaveAttribute("href", "https://example.com/source");
   await expect(source).toHaveAttribute("target", "_blank");
@@ -241,22 +249,24 @@ test("実DBの外部seedを取得しても全国統計とランキングは0件�
   const external = await externalResponse.json();
   const stats = await statsResponse.json();
   const ranking = await rankingResponse.json();
-  expect(external.items).toHaveLength(0);
+  expect(external.items).toHaveLength(1);
+  expect(external.items[0].externalUrl).toBeNull();
   expect(stats.reportCount).toBe(0);
   expect(stats.totalPrizeCount).toBe(0);
   expect(stats.stores.find((store) => store.storeId === "kura-87")).toMatchObject({ reportCount: 0, externalCollectionCount: 2 });
   expect(ranking.items).toEqual([]);
 });
 
-test("外部収集件数があり出典確認中の場合は店舗詳細で状態を案内する", async ({ page }) => {
+test("出典URL確認中の外部収集情報を店舗詳細で公開する", async ({ page }) => {
   await page.goto("/");
   const firstCard = page.locator(".store-card").first();
   await expect(firstCard.getByRole("heading")).toHaveText("北本店");
   await expect(firstCard).toContainText("2 件の情報");
   await expect(firstCard).toContainText("サイト内投稿 0件・外部収集 2件");
   await firstCard.getByRole("button", { name: /結果を見る/ }).click();
-  await expect(page.locator("#external-reports")).toContainText("外部収集情報が2件あります");
-  await expect(page.locator("#external-reports")).toContainText("出典確認中");
+  await expect(page.locator("#external-reports .external-report-card")).toHaveCount(2);
+  await expect(page.locator("#external-reports")).toContainText("食べログ");
+  await expect(page.locator("#external-reports")).toContainText("出典URL確認中");
 });
 
 test("本人投稿APIは未認証アクセスを拒否する", async ({ request }) => {

@@ -52,10 +52,10 @@ test("external platformとA/B/C、complete/partial/mention_onlyを保存でき�
   assert.deepEqual(Object.values(EXTERNAL_PLATFORM_LABELS), ["X", "Google Maps", "食べログ", "ブログ", "その他"]);
 });
 
-test("出典URLがない外部情報はactiveにできず公開対象にもならない", () => {
+test("出典URL確認中でもactiveな構造化情報は公開対象にできる", () => {
   const noSource = { ...valid, externalUrl: null };
-  assert.ok(validateExternalReports([noSource], context).some((error) => error.includes("externalUrl")));
-  assert.deepEqual(filterPublicExternalReports([noSource]), []);
+  assert.deepEqual(validateExternalReports([noSource], context), []);
+  assert.deepEqual(filterPublicExternalReports([noSource]).map((report) => report.id), ["external-1"]);
 });
 
 test("店舗不明のexternal reportを保存できるが店舗表示から除外する", () => {
