@@ -475,4 +475,419 @@ DELETE FROM external_report_prizes WHERE external_report_id = 'external-202608-s
 INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-202608-sapporo-hiraoka-tabelog', 'chiikawa-2026-acrylic-magnet', 1, 'at_least', 'draw');
 INSERT INTO external_report_items (external_report_id, prize_category_id, prize_item_id, quantity, quantity_kind, acquisition_type) VALUES ('external-202608-sapporo-hiraoka-tabelog', 'chiikawa-2026-acrylic-magnet', 'chiikawa-2026-acrylic-magnet-usagi', 1, 'at_least', 'draw');
 
+INSERT INTO external_reports (
+  id, source_type, store_id, campaign_id, visit_date, visit_date_label,
+  external_platform, external_url, external_observed_at, evidence_quality,
+  result_precision, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
+  total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind,
+  note_internal, status, created_at, updated_at
+) VALUES (
+  'external-20260822-chiba-ekimae-x', 'external', 'kura-614', 'chiikawa-kurasushi-2026-summer', '2026-08-22', NULL,
+  'x', 'https://x.com/hamami_129/status/2095355338199621986', '2026-09-03', 'A',
+  'partial', 'unknown', NULL, NULL, NULL, NULL,
+  11, 'exact', NULL, 'unknown',
+  '8月22日の来店、景品11個、フィギュア0個を確認。その他カテゴリの内訳は不明。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT(id) DO UPDATE SET
+  source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
+  visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
+  external_platform=excluded.external_platform, external_url=excluded.external_url,
+  external_observed_at=excluded.external_observed_at, evidence_quality=excluded.evidence_quality,
+  result_precision=excluded.result_precision, usage_type=excluded.usage_type,
+  panel_draws=excluded.panel_draws, panel_wins=excluded.panel_wins,
+  mobile_draws=excluded.mobile_draws, mobile_wins=excluded.mobile_wins,
+  total_prizes=excluded.total_prizes, total_prizes_kind=excluded.total_prizes_kind,
+  spend_amount_yen=excluded.spend_amount_yen, spend_amount_kind=excluded.spend_amount_kind,
+  note_internal=excluded.note_internal, status=excluded.status, updated_at=CURRENT_TIMESTAMP;
+DELETE FROM external_report_items WHERE external_report_id = 'external-20260822-chiba-ekimae-x';
+DELETE FROM external_report_prizes WHERE external_report_id = 'external-20260822-chiba-ekimae-x';
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-20260822-chiba-ekimae-x', 'chiikawa-2026-figure', 0, 'exact', 'draw');
+
+INSERT INTO external_reports (
+  id, source_type, store_id, campaign_id, visit_date, visit_date_label,
+  external_platform, external_url, external_observed_at, evidence_quality,
+  result_precision, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
+  total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind,
+  note_internal, status, created_at, updated_at
+) VALUES (
+  'external-first-saturday-202608-asakusa-rox-x', 'external', 'kura-530', 'chiikawa-kurasushi-2026-summer', NULL, 'キャンペーン初週の土曜日',
+  'x', 'https://x.com/Ralphilia/status/2095473836586328305', '2026-09-03', 'A',
+  'partial', 'unknown', NULL, NULL, NULL, NULL,
+  8, 'exact', NULL, 'unknown',
+  '景品8個、フィギュア0個を確認。投稿内の通称だけでは残りの正式カテゴリを断定できないため未登録。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT(id) DO UPDATE SET
+  source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
+  visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
+  external_platform=excluded.external_platform, external_url=excluded.external_url,
+  external_observed_at=excluded.external_observed_at, evidence_quality=excluded.evidence_quality,
+  result_precision=excluded.result_precision, usage_type=excluded.usage_type,
+  panel_draws=excluded.panel_draws, panel_wins=excluded.panel_wins,
+  mobile_draws=excluded.mobile_draws, mobile_wins=excluded.mobile_wins,
+  total_prizes=excluded.total_prizes, total_prizes_kind=excluded.total_prizes_kind,
+  spend_amount_yen=excluded.spend_amount_yen, spend_amount_kind=excluded.spend_amount_kind,
+  note_internal=excluded.note_internal, status=excluded.status, updated_at=CURRENT_TIMESTAMP;
+DELETE FROM external_report_items WHERE external_report_id = 'external-first-saturday-202608-asakusa-rox-x';
+DELETE FROM external_report_prizes WHERE external_report_id = 'external-first-saturday-202608-asakusa-rox-x';
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-first-saturday-202608-asakusa-rox-x', 'chiikawa-2026-figure', 0, 'exact', 'draw');
+
+INSERT INTO external_reports (
+  id, source_type, store_id, campaign_id, visit_date, visit_date_label,
+  external_platform, external_url, external_observed_at, evidence_quality,
+  result_precision, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
+  total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind,
+  note_internal, status, created_at, updated_at
+) VALUES (
+  'external-20260824-utsunomiya-interpark-x', 'external', 'kura-242', 'chiikawa-kurasushi-2026-summer', '2026-08-24', NULL,
+  'x', 'https://x.com/wY14886/status/2095298388757762263', '2026-09-03', 'A',
+  'partial', 'plus', NULL, NULL, NULL, NULL,
+  11, 'exact', 11000, 'approx',
+  '8月24日夜、約11,000円、確率アップ利用、景品11個、フィギュア0個を確認。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT(id) DO UPDATE SET
+  source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
+  visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
+  external_platform=excluded.external_platform, external_url=excluded.external_url,
+  external_observed_at=excluded.external_observed_at, evidence_quality=excluded.evidence_quality,
+  result_precision=excluded.result_precision, usage_type=excluded.usage_type,
+  panel_draws=excluded.panel_draws, panel_wins=excluded.panel_wins,
+  mobile_draws=excluded.mobile_draws, mobile_wins=excluded.mobile_wins,
+  total_prizes=excluded.total_prizes, total_prizes_kind=excluded.total_prizes_kind,
+  spend_amount_yen=excluded.spend_amount_yen, spend_amount_kind=excluded.spend_amount_kind,
+  note_internal=excluded.note_internal, status=excluded.status, updated_at=CURRENT_TIMESTAMP;
+DELETE FROM external_report_items WHERE external_report_id = 'external-20260824-utsunomiya-interpark-x';
+DELETE FROM external_report_prizes WHERE external_report_id = 'external-20260824-utsunomiya-interpark-x';
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-20260824-utsunomiya-interpark-x', 'chiikawa-2026-figure', 0, 'exact', 'draw');
+
+INSERT INTO external_reports (
+  id, source_type, store_id, campaign_id, visit_date, visit_date_label,
+  external_platform, external_url, external_observed_at, evidence_quality,
+  result_precision, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
+  total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind,
+  note_internal, status, created_at, updated_at
+) VALUES (
+  'external-before-20260903-furesupo-sumiyoshi-x', 'external', 'kura-546', 'chiikawa-kurasushi-2026-summer', NULL, '2026年9月3日以前',
+  'x', 'https://x.com/guitargenjin/status/2095282608599089309', '2026-09-03', 'A',
+  'complete', 'unknown', NULL, NULL, NULL, NULL,
+  4, 'exact', NULL, 'unknown',
+  '景品4個の内訳として、フィギュア1個、缶バッジ2個、アクリルマグネット1個を確認。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT(id) DO UPDATE SET
+  source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
+  visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
+  external_platform=excluded.external_platform, external_url=excluded.external_url,
+  external_observed_at=excluded.external_observed_at, evidence_quality=excluded.evidence_quality,
+  result_precision=excluded.result_precision, usage_type=excluded.usage_type,
+  panel_draws=excluded.panel_draws, panel_wins=excluded.panel_wins,
+  mobile_draws=excluded.mobile_draws, mobile_wins=excluded.mobile_wins,
+  total_prizes=excluded.total_prizes, total_prizes_kind=excluded.total_prizes_kind,
+  spend_amount_yen=excluded.spend_amount_yen, spend_amount_kind=excluded.spend_amount_kind,
+  note_internal=excluded.note_internal, status=excluded.status, updated_at=CURRENT_TIMESTAMP;
+DELETE FROM external_report_items WHERE external_report_id = 'external-before-20260903-furesupo-sumiyoshi-x';
+DELETE FROM external_report_prizes WHERE external_report_id = 'external-before-20260903-furesupo-sumiyoshi-x';
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-before-20260903-furesupo-sumiyoshi-x', 'chiikawa-2026-figure', 1, 'exact', 'unknown');
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-before-20260903-furesupo-sumiyoshi-x', 'chiikawa-2026-can-badge', 2, 'exact', 'unknown');
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-before-20260903-furesupo-sumiyoshi-x', 'chiikawa-2026-acrylic-magnet', 1, 'exact', 'unknown');
+
+INSERT INTO external_reports (
+  id, source_type, store_id, campaign_id, visit_date, visit_date_label,
+  external_platform, external_url, external_observed_at, evidence_quality,
+  result_precision, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
+  total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind,
+  note_internal, status, created_at, updated_at
+) VALUES (
+  'external-before-20260903-nagoya-sakae-x', 'external', 'kura-571', 'chiikawa-kurasushi-2026-summer', NULL, '2026年9月3日以前',
+  'x', 'https://x.com/ama_n4/status/2095193042936607143', '2026-09-03', 'B',
+  'partial', 'unknown', NULL, NULL, NULL, NULL,
+  NULL, 'unknown', 8000, 'approx',
+  '約8,000円利用、フィギュア0個を確認。隣席の結果はこのデータへ含めていない。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT(id) DO UPDATE SET
+  source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
+  visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
+  external_platform=excluded.external_platform, external_url=excluded.external_url,
+  external_observed_at=excluded.external_observed_at, evidence_quality=excluded.evidence_quality,
+  result_precision=excluded.result_precision, usage_type=excluded.usage_type,
+  panel_draws=excluded.panel_draws, panel_wins=excluded.panel_wins,
+  mobile_draws=excluded.mobile_draws, mobile_wins=excluded.mobile_wins,
+  total_prizes=excluded.total_prizes, total_prizes_kind=excluded.total_prizes_kind,
+  spend_amount_yen=excluded.spend_amount_yen, spend_amount_kind=excluded.spend_amount_kind,
+  note_internal=excluded.note_internal, status=excluded.status, updated_at=CURRENT_TIMESTAMP;
+DELETE FROM external_report_items WHERE external_report_id = 'external-before-20260903-nagoya-sakae-x';
+DELETE FROM external_report_prizes WHERE external_report_id = 'external-before-20260903-nagoya-sakae-x';
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-before-20260903-nagoya-sakae-x', 'chiikawa-2026-figure', 0, 'exact', 'unknown');
+
+INSERT INTO external_reports (
+  id, source_type, store_id, campaign_id, visit_date, visit_date_label,
+  external_platform, external_url, external_observed_at, evidence_quality,
+  result_precision, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
+  total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind,
+  note_internal, status, created_at, updated_at
+) VALUES (
+  'external-before-20260902-iwakuni-x', 'external', 'kura-382', 'chiikawa-kurasushi-2026-summer', NULL, '2026年9月2日以前',
+  'x', 'https://x.com/saiii128/status/2095164782282449275', '2026-09-03', 'A',
+  'partial', 'plus', NULL, NULL, NULL, NULL,
+  12, 'exact', 12000, 'exact',
+  '12,000円、確率アップ利用、景品12個、抽選フィギュア2個を確認。確約セット由来の缶バッジ4個を含むが、抽選分を含めた缶バッジ総数は不明なので4個以上。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT(id) DO UPDATE SET
+  source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
+  visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
+  external_platform=excluded.external_platform, external_url=excluded.external_url,
+  external_observed_at=excluded.external_observed_at, evidence_quality=excluded.evidence_quality,
+  result_precision=excluded.result_precision, usage_type=excluded.usage_type,
+  panel_draws=excluded.panel_draws, panel_wins=excluded.panel_wins,
+  mobile_draws=excluded.mobile_draws, mobile_wins=excluded.mobile_wins,
+  total_prizes=excluded.total_prizes, total_prizes_kind=excluded.total_prizes_kind,
+  spend_amount_yen=excluded.spend_amount_yen, spend_amount_kind=excluded.spend_amount_kind,
+  note_internal=excluded.note_internal, status=excluded.status, updated_at=CURRENT_TIMESTAMP;
+DELETE FROM external_report_items WHERE external_report_id = 'external-before-20260902-iwakuni-x';
+DELETE FROM external_report_prizes WHERE external_report_id = 'external-before-20260902-iwakuni-x';
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-before-20260902-iwakuni-x', 'chiikawa-2026-figure', 2, 'exact', 'draw');
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-before-20260902-iwakuni-x', 'chiikawa-2026-can-badge', 4, 'at_least', 'unknown');
+
+INSERT INTO external_reports (
+  id, source_type, store_id, campaign_id, visit_date, visit_date_label,
+  external_platform, external_url, external_observed_at, evidence_quality,
+  result_precision, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
+  total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind,
+  note_internal, status, created_at, updated_at
+) VALUES (
+  'external-20260821-ikebukuro-west-x-photo', 'external', 'kura-601', 'chiikawa-kurasushi-2026-summer', '2026-08-21', NULL,
+  'x', 'https://x.com/mabochandayo4/status/2095357184628728001', '2026-09-03', 'B',
+  'partial', 'unknown', NULL, NULL, NULL, NULL,
+  NULL, 'unknown', 8000, 'at_least',
+  '8月21日、8,000円以上利用を確認。結果写真はあるが全景品が写っているとは断定できず、フィギュア数・景品総数とも不明。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT(id) DO UPDATE SET
+  source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
+  visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
+  external_platform=excluded.external_platform, external_url=excluded.external_url,
+  external_observed_at=excluded.external_observed_at, evidence_quality=excluded.evidence_quality,
+  result_precision=excluded.result_precision, usage_type=excluded.usage_type,
+  panel_draws=excluded.panel_draws, panel_wins=excluded.panel_wins,
+  mobile_draws=excluded.mobile_draws, mobile_wins=excluded.mobile_wins,
+  total_prizes=excluded.total_prizes, total_prizes_kind=excluded.total_prizes_kind,
+  spend_amount_yen=excluded.spend_amount_yen, spend_amount_kind=excluded.spend_amount_kind,
+  note_internal=excluded.note_internal, status=excluded.status, updated_at=CURRENT_TIMESTAMP;
+DELETE FROM external_report_items WHERE external_report_id = 'external-20260821-ikebukuro-west-x-photo';
+DELETE FROM external_report_prizes WHERE external_report_id = 'external-20260821-ikebukuro-west-x-photo';
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-20260821-ikebukuro-west-x-photo', 'chiikawa-2026-figure', NULL, 'unknown', 'unknown');
+
+INSERT INTO external_reports (
+  id, source_type, store_id, campaign_id, visit_date, visit_date_label,
+  external_platform, external_url, external_observed_at, evidence_quality,
+  result_precision, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
+  total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind,
+  note_internal, status, created_at, updated_at
+) VALUES (
+  'external-20260821-ikebukuro-sunshine-x-guaranteed', 'external', 'kura-476', 'chiikawa-kurasushi-2026-summer', '2026-08-21', NULL,
+  'x', 'https://x.com/akatokiha/status/2095082458224218306', '2026-09-03', 'A',
+  'complete', 'unknown', NULL, NULL, NULL, NULL,
+  3, 'exact', NULL, 'unknown',
+  '初日の持ち帰り確約セット3個。うさぎのフィギュア1個と缶バッジ2個を確認。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT(id) DO UPDATE SET
+  source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
+  visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
+  external_platform=excluded.external_platform, external_url=excluded.external_url,
+  external_observed_at=excluded.external_observed_at, evidence_quality=excluded.evidence_quality,
+  result_precision=excluded.result_precision, usage_type=excluded.usage_type,
+  panel_draws=excluded.panel_draws, panel_wins=excluded.panel_wins,
+  mobile_draws=excluded.mobile_draws, mobile_wins=excluded.mobile_wins,
+  total_prizes=excluded.total_prizes, total_prizes_kind=excluded.total_prizes_kind,
+  spend_amount_yen=excluded.spend_amount_yen, spend_amount_kind=excluded.spend_amount_kind,
+  note_internal=excluded.note_internal, status=excluded.status, updated_at=CURRENT_TIMESTAMP;
+DELETE FROM external_report_items WHERE external_report_id = 'external-20260821-ikebukuro-sunshine-x-guaranteed';
+DELETE FROM external_report_prizes WHERE external_report_id = 'external-20260821-ikebukuro-sunshine-x-guaranteed';
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-20260821-ikebukuro-sunshine-x-guaranteed', 'chiikawa-2026-figure', 1, 'exact', 'guaranteed');
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-20260821-ikebukuro-sunshine-x-guaranteed', 'chiikawa-2026-can-badge', 2, 'exact', 'guaranteed');
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-20260821-ikebukuro-sunshine-x-guaranteed', 'chiikawa-2026-acrylic-magnet', 0, 'exact', 'guaranteed');
+INSERT INTO external_report_items (external_report_id, prize_category_id, prize_item_id, quantity, quantity_kind, acquisition_type) VALUES ('external-20260821-ikebukuro-sunshine-x-guaranteed', 'chiikawa-2026-figure', 'chiikawa-2026-figure-usagi', 1, 'exact', 'guaranteed');
+
+INSERT INTO external_reports (
+  id, source_type, store_id, campaign_id, visit_date, visit_date_label,
+  external_platform, external_url, external_observed_at, evidence_quality,
+  result_precision, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
+  total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind,
+  note_internal, status, created_at, updated_at
+) VALUES (
+  'external-20260821-ginza-x-guaranteed', 'external', 'kura-641', 'chiikawa-kurasushi-2026-summer', '2026-08-21', NULL,
+  'x', 'https://x.com/rytrnys/status/2095360833115291934', '2026-09-03', 'A',
+  'partial', 'unknown', NULL, NULL, NULL, NULL,
+  4, 'exact', NULL, 'unknown',
+  'キャンペーン開始日の店舗受取で確約景品4個。3カテゴリが各1個以上含まれることを確認。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT(id) DO UPDATE SET
+  source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
+  visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
+  external_platform=excluded.external_platform, external_url=excluded.external_url,
+  external_observed_at=excluded.external_observed_at, evidence_quality=excluded.evidence_quality,
+  result_precision=excluded.result_precision, usage_type=excluded.usage_type,
+  panel_draws=excluded.panel_draws, panel_wins=excluded.panel_wins,
+  mobile_draws=excluded.mobile_draws, mobile_wins=excluded.mobile_wins,
+  total_prizes=excluded.total_prizes, total_prizes_kind=excluded.total_prizes_kind,
+  spend_amount_yen=excluded.spend_amount_yen, spend_amount_kind=excluded.spend_amount_kind,
+  note_internal=excluded.note_internal, status=excluded.status, updated_at=CURRENT_TIMESTAMP;
+DELETE FROM external_report_items WHERE external_report_id = 'external-20260821-ginza-x-guaranteed';
+DELETE FROM external_report_prizes WHERE external_report_id = 'external-20260821-ginza-x-guaranteed';
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-20260821-ginza-x-guaranteed', 'chiikawa-2026-figure', 1, 'at_least', 'guaranteed');
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-20260821-ginza-x-guaranteed', 'chiikawa-2026-can-badge', 1, 'at_least', 'guaranteed');
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-20260821-ginza-x-guaranteed', 'chiikawa-2026-acrylic-magnet', 1, 'at_least', 'guaranteed');
+
+INSERT INTO external_reports (
+  id, source_type, store_id, campaign_id, visit_date, visit_date_label,
+  external_platform, external_url, external_observed_at, evidence_quality,
+  result_precision, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
+  total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind,
+  note_internal, status, created_at, updated_at
+) VALUES (
+  'external-20260825-ibaraki-koga-x', 'external', 'kura-410', 'chiikawa-kurasushi-2026-summer', '2026-08-25', NULL,
+  'x', 'https://x.com/Ripley2001/status/2095357381891047467', '2026-09-03', 'B',
+  'partial', 'unknown', NULL, NULL, NULL, NULL,
+  NULL, 'unknown', NULL, 'unknown',
+  '8月25日の来店でフィギュア1個以上を確認。景品総数とその他内訳、取得方法は不明。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT(id) DO UPDATE SET
+  source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
+  visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
+  external_platform=excluded.external_platform, external_url=excluded.external_url,
+  external_observed_at=excluded.external_observed_at, evidence_quality=excluded.evidence_quality,
+  result_precision=excluded.result_precision, usage_type=excluded.usage_type,
+  panel_draws=excluded.panel_draws, panel_wins=excluded.panel_wins,
+  mobile_draws=excluded.mobile_draws, mobile_wins=excluded.mobile_wins,
+  total_prizes=excluded.total_prizes, total_prizes_kind=excluded.total_prizes_kind,
+  spend_amount_yen=excluded.spend_amount_yen, spend_amount_kind=excluded.spend_amount_kind,
+  note_internal=excluded.note_internal, status=excluded.status, updated_at=CURRENT_TIMESTAMP;
+DELETE FROM external_report_items WHERE external_report_id = 'external-20260825-ibaraki-koga-x';
+DELETE FROM external_report_prizes WHERE external_report_id = 'external-20260825-ibaraki-koga-x';
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-20260825-ibaraki-koga-x', 'chiikawa-2026-figure', 1, 'at_least', 'unknown');
+
+INSERT INTO external_reports (
+  id, source_type, store_id, campaign_id, visit_date, visit_date_label,
+  external_platform, external_url, external_observed_at, evidence_quality,
+  result_precision, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
+  total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind,
+  note_internal, status, created_at, updated_at
+) VALUES (
+  'external-20260822-ikebukuro-west-x-balanced', 'external', 'kura-601', 'chiikawa-kurasushi-2026-summer', NULL, '2026年8月22日以前',
+  'x', 'https://x.com/MonMkr/status/2095352979251732626', '2026-09-03', 'B',
+  'partial', 'unknown', NULL, NULL, NULL, NULL,
+  NULL, 'unknown', 18000, 'exact',
+  '4人で18,000円利用し、3カテゴリが各1個以上含まれたことを確認。8月22日の来店報告を引用しているが、来店日と抽選・確約の別は断定しない。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT(id) DO UPDATE SET
+  source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
+  visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
+  external_platform=excluded.external_platform, external_url=excluded.external_url,
+  external_observed_at=excluded.external_observed_at, evidence_quality=excluded.evidence_quality,
+  result_precision=excluded.result_precision, usage_type=excluded.usage_type,
+  panel_draws=excluded.panel_draws, panel_wins=excluded.panel_wins,
+  mobile_draws=excluded.mobile_draws, mobile_wins=excluded.mobile_wins,
+  total_prizes=excluded.total_prizes, total_prizes_kind=excluded.total_prizes_kind,
+  spend_amount_yen=excluded.spend_amount_yen, spend_amount_kind=excluded.spend_amount_kind,
+  note_internal=excluded.note_internal, status=excluded.status, updated_at=CURRENT_TIMESTAMP;
+DELETE FROM external_report_items WHERE external_report_id = 'external-20260822-ikebukuro-west-x-balanced';
+DELETE FROM external_report_prizes WHERE external_report_id = 'external-20260822-ikebukuro-west-x-balanced';
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-20260822-ikebukuro-west-x-balanced', 'chiikawa-2026-figure', 1, 'at_least', 'unknown');
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-20260822-ikebukuro-west-x-balanced', 'chiikawa-2026-can-badge', 1, 'at_least', 'unknown');
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-20260822-ikebukuro-west-x-balanced', 'chiikawa-2026-acrylic-magnet', 1, 'at_least', 'unknown');
+
+INSERT INTO external_reports (
+  id, source_type, store_id, campaign_id, visit_date, visit_date_label,
+  external_platform, external_url, external_observed_at, evidence_quality,
+  result_precision, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
+  total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind,
+  note_internal, status, created_at, updated_at
+) VALUES (
+  'external-before-20260903-utsunomiya-tsuruta-x', 'external', 'kura-393', 'chiikawa-kurasushi-2026-summer', NULL, '2026年9月3日以前',
+  'x', 'https://x.com/yukitoshirotama/status/2095360702756299175', '2026-09-03', 'B',
+  'partial', 'unknown', NULL, NULL, NULL, NULL,
+  NULL, 'unknown', NULL, 'unknown',
+  '複数の景品箱から受け取り、フィギュア0個だったことを確認。景品総数と取得方法は不明。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT(id) DO UPDATE SET
+  source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
+  visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
+  external_platform=excluded.external_platform, external_url=excluded.external_url,
+  external_observed_at=excluded.external_observed_at, evidence_quality=excluded.evidence_quality,
+  result_precision=excluded.result_precision, usage_type=excluded.usage_type,
+  panel_draws=excluded.panel_draws, panel_wins=excluded.panel_wins,
+  mobile_draws=excluded.mobile_draws, mobile_wins=excluded.mobile_wins,
+  total_prizes=excluded.total_prizes, total_prizes_kind=excluded.total_prizes_kind,
+  spend_amount_yen=excluded.spend_amount_yen, spend_amount_kind=excluded.spend_amount_kind,
+  note_internal=excluded.note_internal, status=excluded.status, updated_at=CURRENT_TIMESTAMP;
+DELETE FROM external_report_items WHERE external_report_id = 'external-before-20260903-utsunomiya-tsuruta-x';
+DELETE FROM external_report_prizes WHERE external_report_id = 'external-before-20260903-utsunomiya-tsuruta-x';
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-before-20260903-utsunomiya-tsuruta-x', 'chiikawa-2026-figure', 0, 'exact', 'unknown');
+
+INSERT INTO external_reports (
+  id, source_type, store_id, campaign_id, visit_date, visit_date_label,
+  external_platform, external_url, external_observed_at, evidence_quality,
+  result_precision, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
+  total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind,
+  note_internal, status, created_at, updated_at
+) VALUES (
+  'external-before-20260903-chofu-ekimae-x', 'external', 'kura-585', 'chiikawa-kurasushi-2026-summer', NULL, '2026年9月3日以前',
+  'x', 'https://x.com/pupupulandkamui/status/2095264803396972889', '2026-09-03', 'B',
+  'partial', 'unknown', NULL, NULL, NULL, NULL,
+  NULL, 'unknown', NULL, 'unknown',
+  'フィギュア1個以上を確認。景品総数とその他内訳、取得方法は不明。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT(id) DO UPDATE SET
+  source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
+  visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
+  external_platform=excluded.external_platform, external_url=excluded.external_url,
+  external_observed_at=excluded.external_observed_at, evidence_quality=excluded.evidence_quality,
+  result_precision=excluded.result_precision, usage_type=excluded.usage_type,
+  panel_draws=excluded.panel_draws, panel_wins=excluded.panel_wins,
+  mobile_draws=excluded.mobile_draws, mobile_wins=excluded.mobile_wins,
+  total_prizes=excluded.total_prizes, total_prizes_kind=excluded.total_prizes_kind,
+  spend_amount_yen=excluded.spend_amount_yen, spend_amount_kind=excluded.spend_amount_kind,
+  note_internal=excluded.note_internal, status=excluded.status, updated_at=CURRENT_TIMESTAMP;
+DELETE FROM external_report_items WHERE external_report_id = 'external-before-20260903-chofu-ekimae-x';
+DELETE FROM external_report_prizes WHERE external_report_id = 'external-before-20260903-chofu-ekimae-x';
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-before-20260903-chofu-ekimae-x', 'chiikawa-2026-figure', 1, 'at_least', 'unknown');
+
+INSERT INTO external_reports (
+  id, source_type, store_id, campaign_id, visit_date, visit_date_label,
+  external_platform, external_url, external_observed_at, evidence_quality,
+  result_precision, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
+  total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind,
+  note_internal, status, created_at, updated_at
+) VALUES (
+  'external-before-20260902-nishishinjuku-x', 'external', 'kura-558', 'chiikawa-kurasushi-2026-summer', NULL, '2026年9月2日以前',
+  'x', 'https://x.com/nya50_250/status/2095072000020779143', '2026-09-03', 'B',
+  'partial', 'unknown', NULL, NULL, NULL, NULL,
+  NULL, 'unknown', NULL, 'unknown',
+  'フィギュアが複数出た旨を確認。安全側に1個以上として登録。景品総数と取得方法は不明。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT(id) DO UPDATE SET
+  source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
+  visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
+  external_platform=excluded.external_platform, external_url=excluded.external_url,
+  external_observed_at=excluded.external_observed_at, evidence_quality=excluded.evidence_quality,
+  result_precision=excluded.result_precision, usage_type=excluded.usage_type,
+  panel_draws=excluded.panel_draws, panel_wins=excluded.panel_wins,
+  mobile_draws=excluded.mobile_draws, mobile_wins=excluded.mobile_wins,
+  total_prizes=excluded.total_prizes, total_prizes_kind=excluded.total_prizes_kind,
+  spend_amount_yen=excluded.spend_amount_yen, spend_amount_kind=excluded.spend_amount_kind,
+  note_internal=excluded.note_internal, status=excluded.status, updated_at=CURRENT_TIMESTAMP;
+DELETE FROM external_report_items WHERE external_report_id = 'external-before-20260902-nishishinjuku-x';
+DELETE FROM external_report_prizes WHERE external_report_id = 'external-before-20260902-nishishinjuku-x';
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-before-20260902-nishishinjuku-x', 'chiikawa-2026-figure', 1, 'at_least', 'unknown');
+
+INSERT INTO external_reports (
+  id, source_type, store_id, campaign_id, visit_date, visit_date_label,
+  external_platform, external_url, external_observed_at, evidence_quality,
+  result_precision, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
+  total_prizes, total_prizes_kind, spend_amount_yen, spend_amount_kind,
+  note_internal, status, created_at, updated_at
+) VALUES (
+  'external-before-20260903-ikebukuro-west-x', 'external', 'kura-601', 'chiikawa-kurasushi-2026-summer', NULL, '2026年9月3日以前',
+  'x', 'https://x.com/match650/status/2095460370743959639', '2026-09-03', 'B',
+  'partial', 'unknown', NULL, NULL, NULL, NULL,
+  NULL, 'unknown', NULL, 'unknown',
+  'フィギュア1個以上を確認。景品総数とその他内訳は不明。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT(id) DO UPDATE SET
+  source_type='external', store_id=excluded.store_id, campaign_id=excluded.campaign_id,
+  visit_date=excluded.visit_date, visit_date_label=excluded.visit_date_label,
+  external_platform=excluded.external_platform, external_url=excluded.external_url,
+  external_observed_at=excluded.external_observed_at, evidence_quality=excluded.evidence_quality,
+  result_precision=excluded.result_precision, usage_type=excluded.usage_type,
+  panel_draws=excluded.panel_draws, panel_wins=excluded.panel_wins,
+  mobile_draws=excluded.mobile_draws, mobile_wins=excluded.mobile_wins,
+  total_prizes=excluded.total_prizes, total_prizes_kind=excluded.total_prizes_kind,
+  spend_amount_yen=excluded.spend_amount_yen, spend_amount_kind=excluded.spend_amount_kind,
+  note_internal=excluded.note_internal, status=excluded.status, updated_at=CURRENT_TIMESTAMP;
+DELETE FROM external_report_items WHERE external_report_id = 'external-before-20260903-ikebukuro-west-x';
+DELETE FROM external_report_prizes WHERE external_report_id = 'external-before-20260903-ikebukuro-west-x';
+INSERT INTO external_report_prizes (external_report_id, prize_category_id, quantity, quantity_kind, acquisition_type) VALUES ('external-before-20260903-ikebukuro-west-x', 'chiikawa-2026-figure', 1, 'at_least', 'draw');
+
 PRAGMA optimize;
