@@ -107,3 +107,31 @@ test("real local D1 aggregate APIs stay bounded and do not expose report identit
     expect(JSON.stringify(data)).not.toMatch(/daily_rate_hash|user_id|abuse_hash|turnstileToken/);
   }
 });
+
+test("provided images use the same stable master in top, cards, confirmation and store detail",async({page},info)=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.unroute("**/api/stats/items?*");
+  await openGoods(page);
+  const expected="/public/prizes/figure/chiikawa.png";
+  const card=page.locator("#goods-input-cards .goods-input-card").filter({has:page.locator(`input[data-goods-item="${chiikawa}"]`)});
+  await expect(card.locator("img")).toHaveAttribute("src",expected);
+  await expect.poll(()=>card.locator("img").evaluate(img=>img.complete&&img.naturalWidth)).toBe(512);
+  await card.scrollIntoViewIfNeeded();
+  await page.screenshot({path:info.outputPath("provided-prize-cards-mobile.png")});
+  await chooseGoods(page);
+  await page.getByRole("button",{name:"入力内容を確認",exact:true}).click();
+  await expect(page.locator("#confirmation-goods img").first()).toHaveAttribute("src",expected);
+  await page.goto("/");
+  await expect(page.locator(`#national-goods [data-goods-item="${chiikawa}"] img`)).toHaveAttribute("src",expected);
+  await page.goto("/?store=kura-664");
+  await expect(page.locator(`#store-goods [data-goods-item="${chiikawa}"] img`)).toHaveAttribute("src",expected);
+  for(const category of campaign.prizeCategories){
+    await page.locator(`#store-goods [data-goods-tab="${category.id}"]`).click();
+    for(const item of campaign.prizeItems.filter(i=>i.prizeCategoryId===category.id)){
+      const img=page.locator(`#store-goods [data-goods-item="${item.id}"] img`);
+      await expect(img).toHaveAttribute("src",item.imageAsset);
+      await img.scrollIntoViewIfNeeded();
+      await expect.poll(()=>img.evaluate(el=>el.complete&&el.naturalWidth)).toBe(512);
+    }
+  }
+});

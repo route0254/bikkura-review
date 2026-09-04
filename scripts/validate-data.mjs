@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { safeImageAsset } from "../lib/goods-ui.js";
 
 const root = new URL("../", import.meta.url);
@@ -20,7 +20,10 @@ checkUnique(stores, "stores");
 checkUnique(campaigns, "campaigns");
 checkUnique(benefits, "benefits");
 for (const item of [...benefits, ...campaigns.flatMap((c)=>c.prizeItems??[])]) {
-  if (item.imageAsset != null && safeImageAsset(item.imageAsset) !== item.imageAsset) errors.push(`${item.id}: imageAsset はプロジェクト内の画像パスにしてください`);
+  if (item.imageAsset != null) {
+    if (safeImageAsset(item.imageAsset) !== item.imageAsset) errors.push(`${item.id}: imageAsset はプロジェクト内の画像パスにしてください`);
+    else if (!(await stat(new URL(item.imageAsset.slice(1), root)).catch(() => null))?.isFile()) errors.push(`${item.id}: imageAsset のファイルが存在しません`);
+  }
 }
 for (const benefit of benefits) {
   const campaign = campaigns.find((c) => c.id === benefit.campaignId);

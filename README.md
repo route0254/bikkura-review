@@ -104,7 +104,9 @@ pnpm run db:seed
 
 #### 画像の追加・差し替え
 
-`data/campaigns.json` の各prizeItemと `data/benefits.json` に `imageAsset` を設定します。未設定はNULLで、共通の中立的な仮画像を表示します。公式画像・キャラクター画像は未転載です。利用許諾を確認した画像だけを `public/goods/` 等に置き、`/public/goods/example.webp` のようなローカル参照を設定してseedを再生成してください。外部URL・スクリプトURLは受け付けません。全国・店舗・投稿・確認・特典は同じマスターを再利用し、alt・寸法・lazy loading・読込失敗時のfallbackを備えます。
+`data/campaigns.json` の各prizeItemと `data/benefits.json` に `imageAsset` を設定します。今回の景品21種は、ユーザー提供の識別用イラストを日本語名・カテゴリと照合して既存stable IDへ紐付けています（[対応表](docs/PRIZE-ASSETS.md)）。実物写真ではない旨をUIに表示し、公式写真の収集・転載はしていません。実行時はこのマスターを全国・店舗・投稿・確認で共通利用し、ファイル名からの自動推測は行いません。
+
+素材は `public/prizes/` に置き、`/public/prizes/figure/chiikawa.png` のようなローカル参照を設定してseedを再生成します。未設定・読込失敗時は共通プレースホルダへフォールバックします。画像未提供の先着特典は従来どおりです。外部URL・スクリプトURLを拒否し、マスターで参照したファイルの存在、alt・寸法・lazy loadingも検証します。本番への画像反映は承認後に画像参照だけを更新し、投稿や景品IDを変更しません。
 
 
 - `GET /api/campaigns`
