@@ -1,6 +1,6 @@
 # ビッくらポン！みんなの結果共有
 
-利用者が自己申告したビッくらポン！の抽選結果を、店舗・キャンペーン・全国単位で集計する非公式サイトです。くら寿司、各コラボ作品、その他権利者とは関係ありません。店舗の良し悪しや不正を評価する目的ではありません。ランキングは利用者投稿データ上の参考値として表示します。
+「何が何個出たか」をグッズ中心に見える化する、利用者投稿の非公式サイトです。グッズ個数・利用金額・店舗別結果・先着特典の状況を確認できます。くら寿司、各コラボ作品、その他権利者とは関係ありません。店舗の良し悪しや不正を評価する目的ではありません。ランキングは利用者投稿データ上の参考値として表示します。
 
 公開予定URL: https://review.chiikatsu-map.com/
 
@@ -31,7 +31,7 @@ pnpm run dev
 
 ## D1
 
-binding名は `DB` です。migrationは番号順に `0010_period_spend_benefits.sql` まで適用してください。`0006`〜`0010` は既存テーブルを再構築しない追加型です。`0009` 適用前の投稿は従来どおり `detailed`、`0010` 適用前のかんたん投稿の確定景品数はNULL（不明）のまま保持します。
+binding名は `DB` です。migrationは番号順に `0011_goods_experience.sql` まで適用してください。`0006`〜`0011` は既存テーブルを再構築しない追加型です。`0009` 適用前の投稿は従来どおり `detailed`、`0010` 適用前のかんたん投稿の確定景品数はNULL（不明）のまま保持します。
 
 ```bash
 pnpm run db:migrate
@@ -81,14 +81,31 @@ pnpm run db:seed
 - 投稿は入力→確認→送信。確認画面は投稿内容だけの許可リストから生成し、認証情報は表示しません。連打を防止し、完了後にX・Web Share・URLコピーを提供。共有には店舗名とサイトURLだけを含め、金額を含めません。
 - 順位は `lib/stats.js` の95% Wilson下限、表示割合は補正前の値。完全入力5件・抽選景品50個の下限は維持。景品数の補正であり、母集団の封入率や投稿選択バイアスを推定するものではありません。
 - `data/benefits.json` で先着特典名・開始日・条件・出典を管理。終了日NULLは「無くなり次第終了」。公式情報で確認したミニ巾着・湯呑み・寿司皿を登録しています。
-- `GET /api/stores/:id/benefits?campaign=` は各特典の最新1件と24時間の状態別件数だけ返し、トップでは取得しません。24h/48h/古い報告を分け、現況を断定しません。
+- `GET /api/stores/:id/benefits?campaign=` は各特典の最新1件と24時間の状態別件数だけ返し、店舗詳細を開いたときに取得します（トップ概要は0011のlatest API）。24h/48h/古い報告を分け、現況を断定しません。
 - `POST /api/benefit-reports` は `storeId, benefitId, observedAt`（UTC ISO日時）, `availability`（available/unavailable/unknown）, `turnstileToken` を受付。別の `benefit_reports` に保存し、既存統計へ影響しません。Turnstile actionは `benefit_submit`、任意Google認証・BAN・ハッシュ方式を再利用。restrictedはpending。別の `benefit_submission_slots` で匿名5件/ログイン20件/制限中5件の日次上限、同じ利用者・店舗・特典へ1時間1件を原子的に制御します。
-- 特典の非表示は管理者が `benefit_reports.status='hidden'` に変更。通常結果の取り下げAPIは特典には適用しません。ハッシュ30日、日次枠35日、重複キー1時間で期限切れを掃除します。公開APIは個人情報を返しません。
+- 特典の非表示は管理者が `benefit_reports.status='hidden'` に変更。通常結果とは別の本人取り下げAPIを0011で追加しています。ハッシュ30日、日次枠35日、重複キー1時間で期限切れを掃除します。公開APIは個人情報を返しません。
 - 外部情報の既存仕様（初期並び順、URL未登録activeの表示）は維持。期間指定中も外部件数は全期間の収集件数であり、統計からは除外します。
 
 検証前に `pnpm run db:migrate` → `pnpm run db:seed` → `pnpm run seed:external` でローカルD1を同期し、最後に `pnpm run verify`。本番は追加migration→特典マスタseed→最後に1回のPages反映の順です。
 
 ## API
+
+### グッズ中心UX（0011）
+
+- 初期画面はキャンペーン・現在期間→グッズカード→先着特典概要→金額参考→店舗・詳しい集計の順。外部件数を含む店舗初期順とURL未登録active表示は変更していません。
+- 標準投稿は店舗・日付・グッズの＋／−。カテゴリ・景品総数を `lib/goods.js` で自動算出し、APIでも再計算します。デザイン不明・種類不明を入力でき、個別景品への推測配分はしません。金額は任意。抽選／確定が不明ならNULL、確定分が分かる場合だけ「うち確定セット」を入力できます。
+- 新入力は `goodsInput: true, goodsItems: [{prizeItemId, quantity, guaranteedQuantity?}], goodsUnknown: [{prizeCategoryId, quantity, guaranteedQuantity?}], goodsUncategorized, guaranteedKnown, spendAmountYen?, drawDetails?` を既存POSTへ送信。報告合計・カテゴリ数はクライアントの申告値を受け付けず計算します。`drawDetails` がない投稿は既存simple方式（当選率対象外）、ある投稿はdetailed方式で保存します。旧API・旧フォームも後方互換で残しています。
+- `GET /api/stats/items?campaign=&period=&store=&prefecture=` は公開中・取り下げていない直接投稿の受取合計（抽選＋確定セット）をD1集計します。個数は確認できた全内訳、割合は個別内訳がカテゴリ数と一致する3投稿・10個以上の部分集合のみ。外部情報・先着特典を含みません。抽選割合・ランキングは別の既存VIEWを継続利用します。
+- `GET /api/benefits/latest?campaign=&benefit=&prefecture=&q=&store=&unavailable=1&limit=&offset=` は最新報告と24時間件数だけ返します（最大60店舗）。特典未指定は日本時間で最新の開始済み特典。トップは配布終了報告がある最大5店舗だけ、専用ビューは20件ずつ取得。過去特典も選べます。両方の状態があれば「直近の報告が分かれています」と表示します。
+- `GET /api/me/benefit-reports` と `POST /api/me/benefit-reports/:id/withdraw` はGoogle認証必須・本人のみ。`benefit_withdrawals` で非破壊かつ重複なく取り下げ、全公開特典APIは `active_benefit_reports` を使います。取り下げで日次枠は戻しませんが、期限付き指紋を解除するので訂正版を投稿できます。復旧は権限を確認した管理者が対象のwithdrawalだけを解除可能です。
+- 先着特典の `receivedQuantity` は任意（受け取れた場合のみ1〜300）。先着特典専用テーブルに保存し、ビッくらポン景品の合計に加えません。来店投稿完了後から自然に別の特典投稿へ進めます。
+- 金額リスクは10万円以上、極端に小さい金額/景品比、同一日次識別子での短時間の極端金額の繰り返しをsoft加点。単一要因では拒否・pendingにせず、複数要因の合算を既存risk_scoreへ渡します。
+- migration `0011_goods_experience.sql` は識別フラグ、画像参照、特典受取個数、確定分アイテム表、特典withdrawal表・読み取りVIEW・索引の追加のみ。既存reports/prizesは再構築・変換しません。本番は0011→画像マスターの差分→Pagesの順。
+
+#### 画像の追加・差し替え
+
+`data/campaigns.json` の各prizeItemと `data/benefits.json` に `imageAsset` を設定します。未設定はNULLで、共通の中立的な仮画像を表示します。公式画像・キャラクター画像は未転載です。利用許諾を確認した画像だけを `public/goods/` 等に置き、`/public/goods/example.webp` のようなローカル参照を設定してseedを再生成してください。外部URL・スクリプトURLは受け付けません。全国・店舗・投稿・確認・特典は同じマスターを再利用し、alt・寸法・lazy loading・読込失敗時のfallbackを備えます。
+
 
 - `GET /api/campaigns`
 - `GET /api/stores?q=&prefecture=&campaign=&limit=&cursor=`
@@ -107,7 +124,7 @@ pnpm run db:seed
 - `GET /api/posting-status`
 - `POST /api/reports`
 
-初期表示では静的な `data/stores.json` と、キャンペーン・疎な集計データの2 APIだけを取得します。一覧APIはフォールバック用途でページングし、直近投稿と期間別集計は店舗詳細を開いたときだけ取得します。GETの全国集計・店舗集計は30〜300秒の短いCDNキャッシュを許可しています。投稿直後は表示反映が少し遅れる場合があります。
+初期表示は静的な店舗マスター、キャンペーン、グッズ集計、疎な全体集計、先着特典概要だけを取得します。生の全reports・全外部情報・全特典履歴は返しません。直近投稿は詳しい集計、店舗詳細は店舗を開いたときに遅延取得します。GETの全国集計・店舗集計は30〜300秒の短いCDNキャッシュを許可しています。投稿直後は表示反映が少し遅れる場合があります。
 
 当選率は5投稿かつ50抽選以上、景品カテゴリ割合は内訳をすべて入力した5投稿かつ景品20個以上を表示条件にしています。個別景品割合はカテゴリ内訳が完全な3投稿かつ10個以上、フィギュア報告割合ランキングはカテゴリ内訳が完全な5投稿かつ景品50個以上を条件にしています。`pending` / `hidden` はいずれの集計にも含めません。
 
@@ -186,7 +203,7 @@ pnpm run build
 3. Firebase AuthenticationでGoogleプロバイダーを有効化
 4. Firebase Authorized domainsへ `review.chiikatsu-map.com` を追加（APIキーを制限している場合は同ドメインも許可）
 5. Cloudflare Pagesに `TURNSTILE_SECRET_KEY`、`RATE_LIMIT_SALT`、`ABUSE_HASH_SALT`、`USER_ID_SECRET` をSecretとして設定
-6. リモートD1へ `0010_period_spend_benefits.sql` までmigrationを適用し、通常seed（特典マスタ含む）とexternal seedを投入
+6. リモートD1へ `0011_goods_experience.sql` までmigrationを適用し、通常seed（特典マスタ含む）とexternal seedを投入
 7. Pagesを一度だけ再デプロイ
 8. 匿名投稿、Googleログイン、ログアウト、残り投稿件数、上限到達時の表示を確認
 9. `pending`投稿が公開集計・最近の投稿に含まれないことを確認
@@ -202,7 +219,7 @@ pnpm run build
 
 既存の `report_prizes` はすべて従来どおり抽選景品（`draw`）として扱います。今後入力する確約景品だけを専用テーブルへ保存し、抽選回数・当選率・抽選景品割合・ランキングには一切含めません。
 
-投稿フォームは、スマホでも入力しやすい「かんたん入力」を初期表示します。かんたん入力では利用金額・景品合計を必須、抽選回数とカテゴリ内訳を任意で保存します。当たり数や取得経路を推測できないため、専用欄で投稿数・利用金額・景品数・回答がある抽選回数だけを集計し、当選率・利用区分別集計・抽選景品割合・個別景品集計・ランキングには含めません。
+標準はグッズカード入力です。従来の「かんたん入力」も入力方法の変更から利用できます。かんたん入力では利用金額・景品合計を必須、抽選回数とカテゴリ内訳を任意で保存します。当たり数や取得経路を推測できないため、専用欄で投稿数・利用金額・景品数・回答がある抽選回数だけを集計し、当選率・利用区分別集計・抽選景品割合・個別景品集計・ランキングには含めません。
 
 「詳しく入力」では、タッチパネル・スマホ注文・抽選なしでもらった景品を同じ階層で入力し、景品カテゴリと個別景品は「今回もらった景品の合計」として1回だけ入力します。抽選回数と当たり回数にはパネル・スマホ注文だけを使います。合計に確定セット等の景品を含む投稿は、抽選景品との配分を推測できないため、抽選景品割合・個別景品集計・ランキングから除外します。従来の取得経路別投稿は後方互換で読み取り・集計します。
 

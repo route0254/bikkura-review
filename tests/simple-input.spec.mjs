@@ -4,6 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 const runtimeErrors = new WeakMap();
 
 test.beforeEach(async ({ page }) => {
+  await page.route("**/api/me/benefit-reports?*", (route) => route.fulfill({ json: { items: [] } }));
   const errors = [];
   runtimeErrors.set(page, errors);
   page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
@@ -24,7 +25,7 @@ test.afterEach(async ({ page }) => {
   expect(runtimeErrors.get(page) ?? []).toEqual([]);
 });
 
-test("simple input is the default and submits spend, optional draws, and total prizes", async ({ page }) => {
+test("legacy simple input still submits spend, optional draws, and total prizes", async ({ page }) => {
   let submitted;
   await page.route("**/api/reports", async (route) => {
     submitted = route.request().postDataJSON();
@@ -33,6 +34,8 @@ test("simple input is the default and submits spend, optional draws, and total p
 
   await page.goto("/");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await page.locator("#legacy-mode > summary").click();
+  await page.locator('[name="resultInputMode"][value="simple"]').check();
   await expect(page.locator('[name="resultInputMode"][value="simple"]')).toBeChecked();
   await expect(page.locator("#simple-input-section")).toBeVisible();
   await expect(page.locator("#detailed-input-section")).toBeHidden();
@@ -78,6 +81,8 @@ test("mobile form stays within the viewport and switches modes by keyboard", asy
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await page.locator("#legacy-mode > summary").click();
+  await page.locator('[name="resultInputMode"][value="simple"]').check();
   const dialog = page.getByRole("dialog", { name: "結果を投稿する" });
   await expect(dialog).toBeVisible();
   await expect(page.getByLabel("使った金額 必須")).toBeVisible();
@@ -115,6 +120,7 @@ test("simple summaries are shown separately from draw statistics", async ({ page
     }),
   }));
   await page.goto("/");
+  await page.getByRole("tab", { name: "詳しい集計" }).click();
   await expect(page.locator("#simple-summary")).toBeVisible();
   await expect(page.locator("#simple-summary")).toContainText("5,000円");
   await expect(page.locator("#simple-summary")).toContainText("3個");

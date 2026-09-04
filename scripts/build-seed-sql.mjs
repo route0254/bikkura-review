@@ -15,12 +15,14 @@ for (const campaign of campaigns) {
   for (const prize of campaign.prizeCategories) sql.push(`INSERT INTO prize_categories (id, campaign_id, name, sort_order, active) VALUES (${quote(prize.id)}, ${quote(campaign.id)}, ${quote(prize.name)}, ${Number(prize.sortOrder)}, 1) ON CONFLICT(id) DO UPDATE SET name=excluded.name, sort_order=excluded.sort_order, active=excluded.active;`);
   for (const item of campaign.prizeItems ?? []) {
     sql.push(`INSERT INTO prize_items (id, campaign_id, prize_category_id, name, sort_order, active) VALUES (${quote(item.id)}, ${quote(campaign.id)}, ${quote(item.prizeCategoryId)}, ${quote(item.name)}, ${Number(item.sortOrder)}, 1) ON CONFLICT(id) DO UPDATE SET campaign_id=excluded.campaign_id, prize_category_id=excluded.prize_category_id, name=excluded.name, sort_order=excluded.sort_order, active=excluded.active;`);
+    if (Object.hasOwn(item, "imageAsset")) sql.push(`UPDATE prize_items SET image_asset=${quote(item.imageAsset)} WHERE id=${quote(item.id)};`);
   }
   const itemIds = (campaign.prizeItems ?? []).map((item) => quote(item.id));
   if (itemIds.length) sql.push(`UPDATE prize_items SET active = 0 WHERE campaign_id = ${quote(campaign.id)} AND id NOT IN (${itemIds.join(", ")});`);
 }
 for (const benefit of benefits) {
   sql.push(`INSERT INTO benefit_campaigns (id, campaign_id, name, starts_on, ends_on, conditions, source_url, sort_order, active) VALUES (${quote(benefit.id)}, ${quote(benefit.campaignId)}, ${quote(benefit.name)}, ${quote(benefit.startsOn)}, ${quote(benefit.endsOn)}, ${quote(benefit.conditions)}, ${quote(benefit.sourceUrl)}, ${Number(benefit.sortOrder)}, ${benefit.active ? 1 : 0}) ON CONFLICT(id) DO UPDATE SET name=excluded.name, starts_on=excluded.starts_on, ends_on=excluded.ends_on, conditions=excluded.conditions, source_url=excluded.source_url, sort_order=excluded.sort_order, active=excluded.active;`);
+  if (Object.hasOwn(benefit, "imageAsset")) sql.push(`UPDATE benefit_campaigns SET image_asset=${quote(benefit.imageAsset)} WHERE id=${quote(benefit.id)};`);
 }
 for (const store of stores) {
   const searchText = normalizeSearchText([store.name, store.prefecture, store.city, store.address].join(" "));

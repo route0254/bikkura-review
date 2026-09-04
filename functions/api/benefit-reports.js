@@ -50,7 +50,7 @@ export async function onRequestPost({ request, env }) {
       // restrictedユーザーは通常投稿と同様に公開前の確認へ回す。
       const status = user?.status === "restricted" ? "pending" : "active";
       statements.push(
-        env.DB.prepare(`INSERT INTO benefit_reports(id,store_id,benefit_id,observed_at,availability,status,user_id,daily_rate_hash,abuse_hash,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)`).bind(id, store.id, benefit.id, payload.observedAt, payload.availability, status, identity.userId, identity.dailyRateHash, identity.abuseHash, now.toISOString()),
+        env.DB.prepare(`INSERT INTO benefit_reports(id,store_id,benefit_id,observed_at,availability,status,user_id,daily_rate_hash,abuse_hash,created_at,received_quantity) VALUES(?,?,?,?,?,?,?,?,?,?,?)`).bind(id, store.id, benefit.id, payload.observedAt, payload.availability, status, identity.userId, identity.dailyRateHash, identity.abuseHash, now.toISOString(), payload.receivedQuantity ?? null),
         env.DB.prepare("INSERT INTO benefit_fingerprints(fingerprint,report_id,expires_at) VALUES(?,?,?)").bind(fingerprint, id, seconds + 3600),
         env.DB.prepare("INSERT INTO benefit_submission_slots(actor_hash,local_date,slot,report_id,created_at) VALUES(?,?,?,?,?)").bind(actor, identity.localDate, Number(count?.last ?? 0) + 1, id, now.toISOString()),
       );

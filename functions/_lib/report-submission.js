@@ -7,6 +7,7 @@ import { optionalFirebaseUser } from "./firebase-auth.js";
 import { apiError, json, unavailable } from "./http.js";
 import { abuseHashPeriod, createInternalUserId, createNetworkHash, isSameOrigin } from "./security.js";
 import { verifyTurnstile } from "./turnstile.js";
+import { normalizeGoodsPayload } from "../../lib/goods.js";
 
 const RETENTION_DAYS = 30;
 
@@ -85,8 +86,8 @@ function reportInsertStatements({ env, payload, identity, risk, reportId, create
       mobile_draws, mobile_wins, unknown_prize_count, status, created_at,
       prize_breakdown_status, user_id, daily_rate_hash, abuse_hash, risk_score, risk_reasons,
       guaranteed_prize_count, prize_input_mode, result_input_mode, spend_amount_yen,
-      reported_total_draws, reported_prize_count, simple_guaranteed_prize_count
-    ) VALUES (?, 'user', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      reported_total_draws, reported_prize_count, simple_guaranteed_prize_count, goods_input
+    ) VALUES (?, 'user', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     reportId, payload.storeId, payload.campaignId, payload.visitDate, payload.usageType,
     payload.panelDraws, payload.panelWins, payload.mobileDraws, payload.mobileWins,
@@ -95,6 +96,7 @@ function reportInsertStatements({ env, payload, identity, risk, reportId, create
     guaranteedPrizeCount, prizeInputMode, resultInputMode, payload.spendAmountYen ?? null,
     payload.reportedTotalDraws ?? null, payload.reportedPrizeCount ?? null,
     payload.simpleGuaranteedPrizeCount ?? null,
+    payload.goodsInput === true ? 1 : 0,
   ));
   for (const prize of payload.prizes.filter((item) => item.quantity > 0)) {
     const acquisitionType = acquisitionTypeOf(prize);
@@ -119,6 +121,9 @@ function reportInsertStatements({ env, payload, identity, risk, reportId, create
         : acquisitionType === "draw" ? "report_prize_items" : "report_guaranteed_items";
       statements.push(env.DB.prepare(`INSERT INTO ${itemTable} (report_id, prize_category_id, prize_item_id, quantity) VALUES (?, ?, ?, ?)`).bind(reportId, breakdown.prizeCategoryId, item.prizeItemId, item.quantity));
     }
+  }
+  for (const item of payload.goodsGuaranteedItems ?? []) {
+    statements.push(env.DB.prepare("INSERT INTO report_goods_guaranteed_items (report_id, prize_item_id, quantity) VALUES (?, ?, ?)").bind(reportId, item.prizeItemId, item.quantity));
   }
   statements.push(
     env.DB.prepare("INSERT INTO report_fingerprints (fingerprint, report_id, expires_at, created_at) VALUES (?, ?, ?, ?)")
@@ -183,8 +188,12 @@ export async function handleReportPost({ request, env }) {
     let payload;
     try { payload = JSON.parse(rawBody); } catch { return apiError("投稿データの形式が正しくありません。", 400); }
 
-    const validationErrors = validateReportPayload(payload, await reportContext(env, payload));
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return apiError("投稿データの形式が正しくありません。");
+    const context = await reportContext(env, payload);
+    const validationErrors = validateReportPayload(payload, context);
     if (validationErrors.length) return json({ error: "入力内容を確認してください。", errors: validationErrors }, { status: 422, headers: { "Cache-Control": "no-store" } });
+    if (payload.goodsInput === true) payload = normalizeGoodsPayload(payload, context).report;
+    else { delete payload.goodsInput; delete payload.goodsGuaranteedItems; }
     const turnstile = await verifyTurnstile(payload.turnstileToken, env.TURNSTILE_SECRET_KEY, request.headers.get("CF-Connecting-IP"));
     if (!turnstile.success) {
       console.warn("Turnstile verification failed", turnstile.errorCodes);
@@ -219,13 +228,14 @@ export async function handleReportPost({ request, env }) {
     const fingerprint = await createReportFingerprint(identity.userId ?? identity.abuseHash, payload);
     const oneHourAgo = new Date(now.getTime() - 3_600_000).toISOString();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 86_400_000).toISOString();
-    const [duplicate, sameStoreRecent, recentAbuse] = await Promise.all([
+    const [duplicate, sameStoreRecent, recentAbuse, extremeSpend] = await Promise.all([
       env.DB.prepare("SELECT report_id FROM report_fingerprints WHERE fingerprint = ? AND expires_at > ?").bind(fingerprint, nowSeconds).first(),
       env.DB.prepare("SELECT COUNT(*) AS count FROM reports WHERE abuse_hash = ? AND store_id = ? AND created_at >= ?").bind(identity.abuseHash, payload.storeId, oneHourAgo).first(),
       env.DB.prepare("SELECT COUNT(*) AS count FROM reports WHERE abuse_hash = ? AND created_at >= ?").bind(identity.abuseHash, sevenDaysAgo).first(),
+      env.DB.prepare("SELECT COUNT(*) AS count FROM reports WHERE daily_rate_hash = ? AND created_at >= ? AND spend_amount_yen >= 100000").bind(identity.dailyRateHash, oneHourAgo).first(),
     ]);
     if (duplicate) return apiError("同じ内容の投稿がすでに送信されています。時間を空けてお試しください。", 409);
-    const risk = assessReportRisk(payload, { sameStoreRecentCount: sameStoreRecent?.count, recentAbuseCount: recentAbuse?.count });
+    const risk = assessReportRisk(payload, { sameStoreRecentCount: sameStoreRecent?.count, recentAbuseCount: recentAbuse?.count, recentExtremeSpendCount: extremeSpend?.count });
 
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const usage = await env.DB.prepare("SELECT COUNT(*) AS count, COALESCE(MAX(slot), 0) AS max_slot FROM daily_submission_slots WHERE actor_hash = ? AND local_date = ?")

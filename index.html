@@ -32,7 +32,7 @@
           <span class="brand-mark" aria-hidden="true"><span></span></span>
           <span>
             <strong>ビッくらポン！<br class="mobile-break">みんなの結果共有</strong>
-            <small>みんなの抽選結果を集めて見える化する非公式サイト</small>
+            <small>何が何個出た？みんなの結果を見える化する非公式サイト</small>
           </span>
         </a>
         <div class="header-actions">
@@ -56,6 +56,7 @@
           <p class="eyebrow">集計中のキャンペーン</p>
           <h1 id="campaign-title">ちいかわ × くら寿司 コラボキャンペーン</h1>
           <p id="campaign-period" class="campaign-period">2026年8月21日〜9月30日 <span>公式一次情報で確認済み</span></p>
+          <p id="current-period" class="current-period"></p>
           <p id="campaign-archive-note" class="campaign-archive-note" hidden>終了したキャンペーンのため、閲覧のみ利用できます。</p>
         </div>
         <label class="campaign-select-label" for="campaign-select">
@@ -68,7 +69,8 @@
 
       <section class="site-intro" aria-labelledby="site-intro-title">
         <h2 id="site-intro-title">このサイトでわかること</h2>
-        <ul><li>店舗ごとの結果</li><li>○円で景品○個</li><li>グッズ・キャラクターの割合</li><li>来店期間ごとの違い</li></ul>
+        <p>みんなの結果を集めて「何が何個出たか」を見える化する非公式サイトです。</p>
+        <nav class="quick-actions" aria-label="すぐに使う"><button type="button" class="button button-primary" data-open-report>グッズの結果を投稿</button><button type="button" class="button button-secondary" data-benefits-view>湯呑み・寿司皿など先着特典</button><a href="#store-browser-tab">店舗別に見る</a></nav>
       </section>
       <section class="period-filter" aria-labelledby="period-filter-title">
         <h2 id="period-filter-title">来店期間で比較</h2>
@@ -76,6 +78,9 @@
         <p id="period-filter-note" class="section-note section-note-left">先着特典切替日を基準にしたサイト内比較期間です。ビッくらポン景品自体の公式な「弾」ではありません。</p>
         <p id="period-load-status" role="status"></p>
       </section>
+      <section class="goods-main" aria-labelledby="goods-title"><div class="section-heading"><div><p class="eyebrow">どのグッズが、何個出た？</p><h2 id="goods-title">みんなのグッズ結果</h2></div><label class="goods-region">地域<select id="goods-prefecture" aria-label="グッズ集計の都道府県"><option value="">全国</option></select></label></div><p id="goods-summary" role="status"></p><div id="national-goods"><p>グッズの報告を読み込んでいます。</p></div><p class="section-note section-note-left">このサイトへの直接投稿で確認できた個数です。抽選と確定セットを含む受取合計で、先着特典・外部口コミは含みません。</p></section>
+      <section id="benefit-teaser" class="benefit-teaser" aria-labelledby="benefit-teaser-title"><h2 id="benefit-teaser-title">先着特典の最新状況</h2><div id="benefit-teaser-body">読み込み中…</div><button type="button" class="button button-secondary" data-benefits-view>状況を見る・投稿する</button></section>
+      <section class="reference-overview" aria-labelledby="reference-title"><h2 id="reference-title">利用金額などの参考データ</h2><p id="reference-summary"></p><div id="reference-spend"></div><details class="calculation-method"><summary>集計方法について</summary><ul><li>グッズの個数は公開中の直接投稿で確認できた受取合計です。デザイン不明分は個別グッズに推測で割り振りません。</li><li>グッズ割合は個別内訳が揃った投稿だけで算出し、表示個数と対象が異なる場合があります。</li><li>当選率は抽選詳細を入力した投稿だけ。確定セットは抽選統計から除外します。</li><li>先着特典は別データ。外部参考情報も主要統計には含めません。</li><li>金額は中央値中心。ランキングはサンプル数を考慮しています。</li></ul></details></section>
       <section class="stats-section" aria-labelledby="stats-title">
         <div class="section-heading">
           <div>
@@ -98,9 +103,14 @@
 
       <div class="result-view-tabs" role="tablist" aria-label="表示内容">
         <button id="store-browser-tab" type="button" role="tab" aria-selected="true" aria-controls="store-browser" data-view-tab="stores">店舗を探す</button>
+        <button id="benefits-tab" type="button" role="tab" aria-selected="false" aria-controls="benefits-view" data-view-tab="benefits" tabindex="-1">先着特典</button>
+        <button id="detail-data-tab" type="button" role="tab" aria-selected="false" aria-controls="detail-data-view" data-view-tab="details" tabindex="-1">詳しい集計</button>
         <button id="figure-ranking-tab" type="button" role="tab" aria-selected="false" aria-controls="figure-ranking" data-view-tab="ranking" tabindex="-1">フィギュアランキング</button>
         <button id="prefecture-stats-tab" type="button" role="tab" aria-selected="false" aria-controls="prefecture-stats" data-view-tab="prefectures" tabindex="-1">都道府県別集計</button>
       </div>
+
+      <section id="benefits-view" class="result-view-panel" role="tabpanel" aria-labelledby="benefits-tab" data-view-panel="benefits" hidden><h2>先着特典の状況を見る・投稿する</h2><p>受け取れた・案内された時点の報告です。現在の在庫を保証しません。</p><div class="benefit-filters"><label class="field">特典（過去分も選べます）<select id="benefit-select"></select></label><label class="field">都道府県<select id="benefit-prefecture"><option value="">全国</option></select></label><label class="field">店舗名<input id="benefit-search" type="search" placeholder="店舗名で絞り込み"></label></div><button id="benefit-search-submit" class="button button-secondary" type="button">絞り込む</button><div class="benefit-post-picker"><h3>この店舗の状況を投稿</h3><label class="field">投稿する店舗<select id="benefit-post-store"><option value="">店舗を選択してください</option></select></label><button id="benefit-post-start" class="button button-primary" type="button">先着特典の状況を投稿</button><p id="benefit-picker-status" role="status"></p></div><div id="benefit-overview-list" aria-live="polite"></div><button id="benefit-load-more" type="button" class="button button-secondary" hidden>さらに表示</button></section>
+      <section id="detail-data-view" class="result-view-panel" role="tabpanel" aria-labelledby="detail-data-tab" data-view-panel="details" hidden><h2>詳しい集計</h2><p>抽選の回数・当選率は、抽選詳細まで入力された投稿による参考データです。</p><div id="legacy-statistics"></div></section>
 
       <section id="store-browser" class="store-section result-view-panel" role="tabpanel" aria-labelledby="store-browser-tab" data-view-panel="stores">
         <div class="section-heading store-heading">
@@ -212,19 +222,20 @@
           <button class="icon-button" type="button" data-close-report aria-label="投稿フォームを閉じる">×</button>
         </div>
         <form id="report-form" class="report-form" novalidate>
-          <p class="form-intro">覚えている範囲で大丈夫です。入力しやすい方法を選んでください。</p>
+          <p class="form-intro">もらったグッズを選んで＋／−するだけ。金額や抽選の詳細は任意です。</p>
           <p id="posting-status" class="posting-status" role="status">匿名投稿は1日5件までです。ログインすると1日20件まで投稿できます。</p>
           <div id="form-errors" class="form-errors" role="alert" tabindex="-1" hidden></div>
           <section class="report-step" aria-labelledby="input-mode-title">
-            <div class="report-step-heading"><span>1</span><div><h3 id="input-mode-title">入力方法を選ぶ</h3><p>迷ったら「かんたん入力」がおすすめです。</p></div></div>
-            <div class="input-mode-options" role="radiogroup" aria-labelledby="input-mode-title">
-              <label class="input-mode-card"><input type="radio" name="resultInputMode" value="simple" checked><span><strong>かんたん入力</strong><small>金額と景品数だけで投稿</small></span></label>
+            <h3 id="input-mode-title" class="sr-only">投稿方法</h3>
+            <details id="legacy-mode"><summary>入力方法を変更する（合計だけ覚えている場合など）</summary><div class="input-mode-options" role="radiogroup" aria-labelledby="input-mode-title">
+              <label class="input-mode-card"><input type="radio" name="resultInputMode" value="goods" checked><span><strong>グッズからかんたん投稿</strong><small>＋／−で選ぶ・金額は任意</small></span></label>
+              <label class="input-mode-card"><input type="radio" name="resultInputMode" value="simple"><span><strong>かんたん入力</strong><small>従来の金額と景品数だけで投稿</small></span></label>
               <label class="input-mode-card"><input type="radio" name="resultInputMode" value="detailed"><span><strong>詳しく入力</strong><small>抽選方法や当たり数も記録</small></span></label>
-            </div>
+            </div></details>
           </section>
 
           <section class="report-step" aria-labelledby="visit-info-title">
-            <div class="report-step-heading"><span>2</span><div><h3 id="visit-info-title">店舗と来店日</h3></div></div>
+            <div class="report-step-heading"><span>1</span><div><h3 id="visit-info-title">店舗と来店日</h3></div></div>
             <div class="form-grid">
               <label class="field" for="report-prefecture"><span>都道府県 <b>必須</b></span><select id="report-prefecture" required><option value="">選択してください</option></select></label>
               <label class="field" for="report-store"><span>店舗 <b>必須</b></span><select id="report-store" name="storeId" required disabled><option value="">都道府県を選択してください</option></select></label>
@@ -232,7 +243,9 @@
             </div>
           </section>
 
-          <section id="simple-input-section" class="report-step report-mode-section" aria-labelledby="simple-input-title">
+          <section id="goods-input-section" class="report-step" aria-labelledby="goods-input-title"><div class="report-step-heading"><span>2</span><div><h3 id="goods-input-title">もらったグッズを選ぶ</h3><p>抽選・確定セットで手元に来た合計です。先着特典は別に報告できます。</p></div></div><p class="image-availability-note">画像未設定のグッズは仮画像を表示しています。種類・名前で選んでください。</p><div id="goods-input-cards"></div><details class="goods-extra"><summary>種類も分からない景品がある</summary><label class="field">種類不明の景品<input id="goods-uncategorized" type="number" inputmode="numeric" min="0" max="300" value="0"></label><label class="goods-guaranteed" hidden>うち確定セット分<input id="goods-uncategorized-guaranteed" type="number" inputmode="numeric" min="0" max="300" value="0"></label></details><label class="check-label"><input id="goods-guaranteed-known" type="checkbox">確定セット分も分かる（なければ各グッズ0個）</label><p class="section-note section-note-left">チェックしなければ抽選／確定の内訳は不明のまま保存します。</p><p id="goods-totals" class="goods-totals" aria-live="polite"></p><label class="field">今回いくらくらい使いましたか？ <em>任意</em><span class="suffix-input"><input id="goods-spend" type="number" inputmode="numeric" min="1" max="1000000" placeholder="例：5200"><small>円</small></span></label><details id="goods-draw-details" class="goods-extra"><summary>抽選の詳細も入力する（任意）</summary><p>確定セット分も確認してください。選んだグッズ合計との一致をチェックします。</p><label class="field">利用区分<select id="goods-usage"><option value="unknown">不明</option><option value="normal">通常</option><option value="plus">プラス</option></select></label><div class="number-grid"><label class="field">パネル抽選<input id="goods-panel-draws" type="number" min="0" max="300" value="0" inputmode="numeric"></label><label class="field">パネル当たり<input id="goods-panel-wins" type="number" min="0" max="300" value="0" inputmode="numeric"></label><label class="field">スマホ抽選<input id="goods-mobile-draws" type="number" min="0" max="300" value="0" inputmode="numeric"></label><label class="field">スマホ当たり<input id="goods-mobile-wins" type="number" min="0" max="300" value="0" inputmode="numeric"></label></div></details><aside class="goods-benefit-invite"><h3>3,000円ごとの先着特典も受け取りましたか？</h3><p>湯呑み・寿司皿などはグッズ合計に含めません。結果の投稿後に、別の状況報告へ進めます。</p><label class="check-label"><input id="report-benefit-followup" type="checkbox">投稿後に先着特典の状況も報告する</label></aside></section>
+
+          <section id="simple-input-section" class="report-step report-mode-section" aria-labelledby="simple-input-title" hidden>
             <div class="report-step-heading"><span>3</span><div><h3 id="simple-input-title">覚えている結果</h3><p>だいたいの金額で構いません。</p></div></div>
             <div class="simple-input-grid">
               <label class="field field-emphasis" for="spend-amount"><span>使った金額 <b>必須</b></span><span class="suffix-input"><input id="spend-amount" name="spendAmountYen" type="number" min="1" max="1000000" step="100" inputmode="numeric" placeholder="例：5000" required><small>円</small></span></label>
@@ -282,12 +295,12 @@
             </fieldset>
           </section>
           <input id="report-campaign" name="campaignId" type="hidden">
-          <section id="report-confirmation" class="report-confirmation" hidden aria-labelledby="confirmation-title"><h3 id="confirmation-title" tabindex="-1">この内容で投稿します</h3><dl id="confirmation-values"></dl><p>店舗と来店日、景品合計をご確認ください。</p></section>
+          <section id="report-confirmation" class="report-confirmation" hidden aria-labelledby="confirmation-title"><h3 id="confirmation-title" tabindex="-1">この内容で投稿します</h3><div id="confirmation-goods"></div><dl id="confirmation-values"></dl><p>店舗と来店日、景品合計をご確認ください。</p></section>
           <div id="turnstile-container" class="turnstile-container" role="group" aria-label="投稿確認"></div>
           <p id="turnstile-status" class="turnstile-note" role="status">投稿確認を準備しています。</p>
           <div class="form-actions"><button id="report-cancel" class="button button-secondary" type="button" data-close-report>キャンセル</button><button id="report-edit" class="button button-secondary" type="button" hidden>戻って修正</button><button id="report-submit" class="button button-primary" type="submit">入力内容を確認</button></div>
           <p id="form-status" class="form-status" role="status" aria-live="polite"></p>
-          <section id="report-success" class="report-success" hidden aria-labelledby="report-success-title"><h3 id="report-success-title" tabindex="-1">投稿ありがとうございました</h3><p>店舗名と投稿したことだけを共有できます。金額や個人情報は含めません。</p><div class="share-actions"><a id="posted-x-share" class="button button-primary" target="_blank" rel="noopener noreferrer">Xで共有</a><button id="posted-share" class="button button-secondary" type="button">共有・URLコピー</button><button class="button button-secondary" type="button" data-close-report>閉じる</button></div><p id="posted-share-status" role="status"></p></section>
+          <section id="report-success" class="report-success" hidden aria-labelledby="report-success-title"><h3 id="report-success-title" tabindex="-1">投稿ありがとうございました</h3><p>店舗名と投稿したことだけを共有できます。金額や個人情報は含めません。</p><div class="share-actions"><a id="posted-x-share" class="button button-primary" target="_blank" rel="noopener noreferrer">Xで共有</a><button id="posted-share" class="button button-secondary" type="button">共有・URLコピー</button><button class="button button-secondary" type="button" data-close-report>閉じる</button></div><button id="posted-benefit" class="button button-secondary" type="button">先着特典も報告する</button><p id="posted-share-status" role="status"></p></section>
         </form>
       </div>
     </dialog>
@@ -301,6 +314,7 @@
           <div id="benefit-errors" class="form-errors" role="alert" tabindex="-1" hidden></div>
           <label class="field" for="benefit-observed-at"><span>確認日時（日本時間） <b>必須</b></span><input id="benefit-observed-at" type="datetime-local" required></label>
           <label class="field" for="benefit-availability"><span>確認した状態 <b>必須</b></span><select id="benefit-availability" required><option value="">選択してください</option><option value="available">受け取れた</option><option value="unavailable">配布終了と案内された</option><option value="unknown">確認できなかった</option></select></label>
+          <label id="benefit-quantity-field" class="field" hidden>受け取った先着特典の個数（任意）<input id="benefit-quantity" type="number" min="1" max="300" inputmode="numeric" placeholder="不明なら空欄"><small>ビッくらポンの景品合計には加算しません。</small></label>
           <div id="benefit-turnstile" class="turnstile-container" role="group" aria-label="特典投稿確認"></div>
           <p id="benefit-turnstile-status" class="turnstile-note" role="status">投稿確認を準備しています。</p>
           <div class="form-actions"><button class="button button-secondary" type="button" data-close-benefit>閉じる</button><button id="benefit-submit" class="button button-primary" type="submit">特典の状況を送信</button></div>
@@ -315,6 +329,7 @@
           <button class="icon-button" type="button" data-close-my-reports aria-label="自分の投稿を閉じる">×</button>
         </div>
         <div id="my-reports-body" class="dialog-body" aria-live="polite"><p>投稿を読み込んでいます。</p></div>
+        <section class="dialog-body" aria-labelledby="my-benefits-title"><h3 id="my-benefits-title">先着特典の投稿</h3><div id="my-benefits-body" aria-live="polite"></div><p id="my-benefits-status" role="alert"></p></section>
       </div>
     </dialog>
   </body>

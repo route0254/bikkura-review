@@ -13,7 +13,7 @@ export async function onRequestGet({ request, env, params }) {
     const limit = boundedLimit(url.searchParams.get("limit"), 10, 50);
     const reports = (await env.DB.prepare(`
       SELECT id, visit_date, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
-        unknown_prize_count, prize_breakdown_status, prize_input_mode, result_input_mode,
+        unknown_prize_count, prize_breakdown_status, prize_input_mode, result_input_mode, goods_input,
         spend_amount_yen, reported_total_draws, reported_prize_count, simple_guaranteed_prize_count,
         CASE WHEN prize_input_mode = 'total' THEN guaranteed_prize_count
           ELSE COALESCE((SELECT SUM(quantity) FROM report_guaranteed_prizes WHERE report_id = active_user_reports.id), 0)
@@ -47,6 +47,7 @@ export async function onRequestGet({ request, env, params }) {
       guaranteedPrizeCount: Number(report.guaranteed_prize_count),
       prizeInputMode: report.prize_input_mode,
       resultInputMode: report.result_input_mode,
+      goodsInput: Boolean(report.goods_input),
       simpleGuaranteedPrizeCount: report.simple_guaranteed_prize_count ?? null,
       spendAmountYen: report.spend_amount_yen === null ? null : Number(report.spend_amount_yen),
       reportedTotalDraws: report.reported_total_draws === null ? null : Number(report.reported_total_draws),

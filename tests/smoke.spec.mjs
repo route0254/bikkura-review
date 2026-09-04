@@ -8,6 +8,7 @@ const campaignId = "chiikawa-kurasushi-2026-summer";
 const campaignExternalSeed = externalSeed.filter((report) => report.campaignId === campaignId);
 
 test.beforeEach(async ({ page }) => {
+  await page.route("**/api/me/benefit-reports?*", (route) => route.fulfill({ json: { items: [] } }));
   const errors = [];
   runtimeErrors.set(page, errors);
   page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
@@ -35,7 +36,7 @@ test.afterEach(async ({ page }) => {
 
 test("トップページを表示し、店舗を検索・絞り込みできる", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "寄せられた結果" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "みんなのグッズ結果" })).toBeVisible();
   await expect(page.locator(".store-card h3").first()).toBeVisible();
   await page.getByLabel("店舗名・地名").fill("新宿");
   await expect(page.getByRole("heading", { name: "新宿靖国通り店" })).toBeVisible();
@@ -53,6 +54,8 @@ test("都道府県を北海道から沖縄県の順で表示する", async ({ pa
   expect(listOptions.slice(1, 4)).toEqual(["北海道", "青森県", "岩手県"]);
   expect(listOptions.at(-1)).toBe("沖縄県");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await page.locator("#legacy-mode > summary").click();
+  await page.locator('[name="resultInputMode"][value="simple"]').check();
   const reportOptions = await page.getByLabel("都道府県 必須").locator("option").allTextContents();
   expect(reportOptions.slice(1, 4)).toEqual(["北海道", "青森県", "岩手県"]);
   expect(reportOptions.at(-1)).toBe("沖縄県");
@@ -68,7 +71,7 @@ test("全国店舗を段階表示し、一覧の全店舗を検索できる", as
   });
   await page.goto("/");
   await expect(page.locator("#store-count")).toHaveText("60 / 552店舗を表示");
-  expect(functionRequests.sort()).toEqual(["/api/campaigns", "/api/posting-status", "/api/recent-reports", "/api/stats"]);
+  expect(functionRequests.sort()).toEqual(["/api/benefits/latest", "/api/campaigns", "/api/posting-status", "/api/stats", "/api/stats/items"]);
   expect(storeMasterRequests).toBe(1);
   expect(functionRequests).not.toContain("/api/stores");
   await expect(page.locator(".store-card")).toHaveCount(60);
@@ -124,6 +127,8 @@ test("店舗詳細を開閉し、フォーカスを戻す", async ({ page }) => 
 test("不正な回数は投稿前にエラーになる", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await page.locator("#legacy-mode > summary").click();
+  await page.locator('[name="resultInputMode"][value="simple"]').check();
   await page.locator('[name="resultInputMode"][value="detailed"]').check();
   await page.getByLabel("都道府県 必須").selectOption("東京都");
   await page.getByLabel("店舗 必須").selectOption("kura-664");
@@ -137,6 +142,8 @@ test("不正な回数は投稿前にエラーになる", async ({ page }) => {
 test("投稿フォームで都道府県から店舗を絞り込み、個別景品内訳を任意入力できる", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await page.locator("#legacy-mode > summary").click();
+  await page.locator('[name="resultInputMode"][value="simple"]').check();
   await page.locator('[name="resultInputMode"][value="detailed"]').check();
   const storeSelect = page.getByLabel("店舗 必須");
   await expect(storeSelect).toBeDisabled();
@@ -343,7 +350,7 @@ test("ランキングを遅延取得し、対象店舗の詳細を開ける", as
 test("表示タブをキーボードで切り替えられる", async ({ page }) => {
   await page.goto("/");
   const storeTab = page.getByRole("tab", { name: "店舗を探す" });
-  const rankingTab = page.getByRole("tab", { name: "フィギュアランキング" });
+  const rankingTab = page.getByRole("tab", { name: "先着特典", exact: true });
   await storeTab.focus();
   await page.keyboard.press("ArrowRight");
   await expect(rankingTab).toBeFocused();
@@ -391,6 +398,8 @@ test("投稿画面に日次上限の状態を表示する", async ({ page }) => 
   }));
   await page.goto("/");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await page.locator("#legacy-mode > summary").click();
+  await page.locator('[name="resultInputMode"][value="simple"]').check();
   await expect(page.locator("#posting-status")).toContainText("本日の匿名投稿上限（5件）");
 });
 
@@ -402,12 +411,16 @@ test("BAN中は投稿できない理由を表示する", async ({ page }) => {
   }));
   await page.goto("/");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await page.locator("#legacy-mode > summary").click();
+  await page.locator('[name="resultInputMode"][value="simple"]').check();
   await expect(page.locator("#posting-status")).toHaveText("このアカウントからは現在投稿できません。");
 });
 
 test("確定セット等をパネル・スマホと同列で入力し、景品内訳は合計だけ入力する", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await page.locator("#legacy-mode > summary").click();
+  await page.locator('[name="resultInputMode"][value="simple"]').check();
   await page.locator('[name="resultInputMode"][value="detailed"]').check();
   await expect(page.getByRole("group", { name: "タッチパネル" })).toBeVisible();
   await expect(page.getByRole("group", { name: "スマホ注文" })).toBeVisible();
@@ -428,6 +441,8 @@ test("投稿時に合計景品を送信し、Turnstile失敗時は確認を更�
   });
   await page.goto("/");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await page.locator("#legacy-mode > summary").click();
+  await page.locator('[name="resultInputMode"][value="simple"]').check();
   await page.locator('[name="resultInputMode"][value="detailed"]').check();
   await page.getByLabel("都道府県 必須").selectOption("東京都");
   await page.getByLabel("店舗 必須").selectOption("kura-664");

@@ -7,7 +7,7 @@ export async function onRequestGet({ request, env }) {
     const campaign = await getCampaign(env.DB, url.searchParams.get("campaign"));
     if (!campaign) return apiError("キャンペーンが見つかりません。", 404);
     const rows = (await env.DB.prepare(`
-      SELECT item.id, item.prize_category_id, item.name, item.sort_order
+      SELECT item.id, item.prize_category_id, item.name, item.sort_order, item.image_asset
       FROM prize_items item
       JOIN prize_categories category ON category.id = item.prize_category_id
       WHERE item.campaign_id = ? AND item.active = 1 AND category.active = 1
@@ -15,7 +15,7 @@ export async function onRequestGet({ request, env }) {
     `).bind(campaign.id).all()).results;
     return json({
       campaign: mapCampaign(campaign),
-      items: rows.map((row) => ({ id: row.id, prizeCategoryId: row.prize_category_id, name: row.name, sortOrder: row.sort_order })),
+      items: rows.map((row) => ({ id: row.id, prizeCategoryId: row.prize_category_id, name: row.name, sortOrder: row.sort_order, imageAsset: row.image_asset })),
     }, { headers: cacheHeaders(300) });
   } catch (error) { return unavailable(error); }
 }

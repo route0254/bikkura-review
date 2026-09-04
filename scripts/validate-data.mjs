@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { safeImageAsset } from "../lib/goods-ui.js";
 
 const root = new URL("../", import.meta.url);
 const stores = JSON.parse(await readFile(new URL("data/stores.json", root), "utf8"));
@@ -18,6 +19,9 @@ function checkUnique(items, label) {
 checkUnique(stores, "stores");
 checkUnique(campaigns, "campaigns");
 checkUnique(benefits, "benefits");
+for (const item of [...benefits, ...campaigns.flatMap((c)=>c.prizeItems??[])]) {
+  if (item.imageAsset != null && safeImageAsset(item.imageAsset) !== item.imageAsset) errors.push(`${item.id}: imageAsset はプロジェクト内の画像パスにしてください`);
+}
 for (const benefit of benefits) {
   const campaign = campaigns.find((c) => c.id === benefit.campaignId);
   if (!campaign || !benefit.name || !benefit.conditions || typeof benefit.active !== "boolean" || !Number.isInteger(benefit.sortOrder)) errors.push(`${benefit.id}: 特典マスタが不正です`);

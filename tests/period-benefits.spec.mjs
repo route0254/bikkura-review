@@ -9,6 +9,7 @@ const spend = { reportCount: 6, minimum: 5, metrics: {
 }, bands: [{ id: "3000to5999", label: "3,000〜5,999円", count: 5, median: 5 }] };
 
 test.beforeEach(async ({ page }) => {
+  await page.route("**/api/me/benefit-reports?*", (route) => route.fulfill({ json: { items: [] } }));
   const runtime = []; errors.set(page, runtime);
   page.on("pageerror", (error) => runtime.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") runtime.push(message.text()); });
@@ -29,6 +30,8 @@ async function openStore(page) {
 async function fillSimple(page) {
   await page.goto("/");
   await page.getByRole("button", { name: /結果を投稿/ }).first().click();
+  await page.locator("#legacy-mode > summary").click();
+  await page.locator('[name="resultInputMode"][value="simple"]').check();
   await page.locator("#report-prefecture").selectOption("東京都");
   await page.locator("#report-store").selectOption("kura-664");
   await page.locator("#visit-date").fill("2026-09-04");
@@ -43,7 +46,7 @@ test("top intro, period filter, ranking explanation and prefecture queries stay 
   await page.goto("/");
   await expect(page.locator("#period-filter button")).toHaveCount(5);
   await expect(page.getByRole("heading", { name: "このサイトでわかること" })).toBeVisible();
-  expect(requests.some((url) => /\/benefits|external-reports/.test(url))).toBe(false);
+  expect(requests.some((url) => /\/stores\/[^/]+\/benefits|external-reports/.test(url))).toBe(false);
   for (const period of ["period1", "period2", "period3", "7d"]) {
     await page.locator(`[data-global-period="${period}"]`).click();
     await expect(page.locator(`[data-global-period="${period}"]`)).toHaveAttribute("aria-pressed", "true");

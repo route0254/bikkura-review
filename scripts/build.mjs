@@ -8,5 +8,6 @@ await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 for (const file of files) await cp(new URL(file, root), new URL(file, dist));
 for (const directory of ["data", "lib"]) await cp(new URL(`${directory}/`, root), new URL(`${directory}/`, dist), { recursive: true });
+await cp(new URL("public/", root), new URL("public/", dist), { recursive: true });
 await cp(new URL("public/og.png", root), new URL("og.png", dist));
 console.log("dist/ を作成しました");
