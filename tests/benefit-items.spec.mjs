@@ -101,6 +101,25 @@ test("stale store responses cannot replace current selection; failure is distinc
   await expect(panel.locator(".benefit-item-card")).toHaveCount(4);await expect(panel).toContainText("在庫状況は未確認です");await expect(panel.getByRole("alert")).toHaveCount(0);
 });
 
+test("selecting a store during initial master loading waits and never requests an empty benefit",async({page})=>{
+  let release,summaries=0;const queries=[];
+  await page.route("**/api/benefits/latest?*",async r=>{
+    if(new URL(r.request().url()).searchParams.get("summary")!=="1")return r.fallback();
+    summaries++;await new Promise(resolve=>release=resolve);
+    return r.fulfill({json:{benefits,selected,items:[],itemSummary:selected.items}});
+  });
+  await page.route("**/api/stores/kura-77/benefits?*",r=>{
+    queries.push(new URL(r.request().url()).searchParams.get("benefit"));
+    return r.fulfill({json:emptyStoreResponse(r.request().url())});
+  });
+  await page.goto("/");await page.locator("#benefits-tab").click();
+  await page.locator("#benefit-prefecture").selectOption("埼玉県");
+  await page.locator("#benefit-post-store").selectOption("kura-77");
+  await expect.poll(()=>summaries).toBe(1);expect(queries).toEqual([]);release();
+  await expect(page.locator("#benefit-selected-store-status .benefit-item-card")).toHaveCount(4);
+  expect(queries).toEqual([selected.id]);await expect(page.locator("#benefit-post-store")).toHaveValue("kura-77");
+});
+
 test("top fetches only summary; design counts, links and item/prefecture/store-name filters",async({page},info)=>{
   await page.setViewportSize({width:390,height:844});const requests=[];page.on("request",r=>requests.push(r.url()));
   await page.goto("/");await expect(page.locator("#benefit-teaser .benefit-item-card")).toHaveCount(4);

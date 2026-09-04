@@ -486,6 +486,8 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
 .benefit-post-picker { margin-block: 20px; padding: 16px; background: #fffbee; border-radius: 12px; }
 .benefit-post-picker .button { margin-top: 12px; }
 .benefit-post-picker h3 { margin-top: 0; font-size: 1rem; }
+.benefit-filters select, .benefit-filters input, .benefit-post-picker select { min-width: 0; max-width: 100%; }
+.benefit-post-picker .button { max-width: 100%; white-space: normal; }
 #benefit-selected-store-status { margin-top: 18px; }
 #benefit-selected-store-status[hidden], #benefit-selected-designs[hidden], #benefit-overview-list[hidden] { display: none; }
 #benefit-selected-store-status[aria-busy=true] { min-height: 90px; }
