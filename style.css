@@ -399,6 +399,7 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
 .comparison-grid dl > div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; }
 .comparison-grid dd { margin: 0; font-weight: 700; }
 .report-form.is-confirming .report-step, .report-form.is-confirming > .form-intro { display: none; }
+.report-form .form-actions .button[hidden] { display: none; }
 .report-form.is-success > :not(#report-success):not(#form-status) { display: none; }
 .report-confirmation h3, .report-success h3 { scroll-margin-top: 95px; }
 .report-confirmation dl > div { display: grid; grid-template-columns: 1fr 1.3fr; gap: 10px; border-bottom: 1px solid var(--line); padding: 10px 0; }

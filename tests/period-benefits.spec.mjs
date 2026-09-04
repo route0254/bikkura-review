@@ -86,12 +86,18 @@ test("confirmation supports editing, unknown/zero, single submission, success an
     await route.fulfill({ json: { id: "test", status: "active", posting: { remainingToday: 4 } } });
   });
   await fillSimple(page);
+  await expect(page.locator("#report-edit")).toBeHidden();
+  await expect(page.locator("#report-cancel")).toBeVisible();
   await page.getByRole("button", { name: "入力内容を確認" }).click();
+  await expect(page.locator("#report-cancel")).toBeHidden();
+  await expect(page.locator("#report-edit")).toBeVisible();
   await expect(page.locator("#report-confirmation")).toContainText("4個");
   await expect(page.locator("#report-confirmation")).toContainText("不明");
   await expect(page.locator("#confirmation-title")).toBeFocused();
   await expect(page.locator("#report-confirmation")).not.toContainText("private");
   await page.getByRole("button", { name: "戻って修正" }).click();
+  await expect(page.locator("#report-edit")).toBeHidden();
+  await expect(page.locator("#report-cancel")).toBeVisible();
   await page.locator("#simple-guaranteed-count").fill("0");
   await page.getByRole("button", { name: "入力内容を確認" }).click();
   await expect(page.locator("#report-confirmation")).toContainText("0個");
