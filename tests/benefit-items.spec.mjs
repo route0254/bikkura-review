@@ -47,7 +47,11 @@ test("selected store with no reports shows every design as unconfirmed; mobile, 
   await panel.locator("img").evaluateAll(async imgs=>{await Promise.all(imgs.map(i=>i.decode()));await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));});
   await page.screenshot({path:info.outputPath("selected-store-no-reports-mobile.png")});await axe(page,"#benefits-view");
   await page.setViewportSize({width:320,height:740});
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.evaluate(async()=>{await document.fonts.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));});
+  await expect.poll(()=>page.evaluate(()=>{
+    const width=innerWidth,scroll=document.documentElement.scrollWidth;
+    return {width,scroll,overflow:scroll<=width?[]:[...document.querySelectorAll('body *')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.right>width+1;}).slice(0,10).map(e=>`${e.tagName}#${e.id}.${e.className}`)};
+  })).toEqual({width:320,scroll:320,overflow:[]});
   await page.locator("#benefit-post-start").focus();await page.keyboard.press("Enter");
   await expect(page.locator("#benefit-dialog")).toBeVisible();await expect(page.locator("#benefit-dialog")).toContainText("川越店");
   await expect(page.locator("#benefit-item-picker img")).toHaveCount(4);
