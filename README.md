@@ -1,6 +1,6 @@
 # ビッくらポン！みんなの結果共有
 
-利用者が自己申告したビッくらポン！の抽選結果を、店舗・キャンペーン・全国単位で集計する非公式サイトです。くら寿司、各コラボ作品、その他権利者とは関係ありません。店舗の評価、ランキング、不正の判定には使いません。
+利用者が自己申告したビッくらポン！の抽選結果を、店舗・キャンペーン・全国単位で集計する非公式サイトです。くら寿司、各コラボ作品、その他権利者とは関係ありません。店舗の良し悪しや不正を評価する目的ではありません。ランキングは利用者投稿データ上の参考値として表示します。
 
 公開予定URL: https://review.chiikatsu-map.com/
 
@@ -31,14 +31,14 @@ pnpm run dev
 
 ## D1
 
-binding名は `DB` です。migrationは `migrations/` の番号順に適用します。既存DBには `0009_simple_report_input.sql` まで追加適用してください。`0006`〜`0009` は既存テーブルを再構築しない追加型migrationです。`0009` 適用前の投稿は自動的に `detailed` として扱われます。
+binding名は `DB` です。migrationは番号順に `0010_period_spend_benefits.sql` まで適用してください。`0006`〜`0010` は既存テーブルを再構築しない追加型です。`0009` 適用前の投稿は従来どおり `detailed`、`0010` 適用前のかんたん投稿の確定景品数はNULL（不明）のまま保持します。
 
 ```bash
 pnpm run db:migrate
 pnpm run db:seed
 ```
 
-`pnpm run db:seed` は `data/stores.json` と `data/campaigns.json` から `seed/seed.sql` を生成してローカルD1へ投入します。公開済みIDは変更・再利用しません。店舗名が変わっても同じ店舗ならIDを維持します。
+`pnpm run db:seed` は `data/stores.json`、`data/campaigns.json`、`data/benefits.json` から `seed/seed.sql` を生成してローカルD1へ投入します。公開済みIDは変更・再利用しません。店舗名が変わっても同じ店舗ならIDを維持します。
 
 リモートD1を作成した後は、`wrangler.jsonc` の `database_id` を実際のIDに置き換えます。Account IDやAPI tokenはファイルへ書きません。
 
@@ -71,13 +71,28 @@ pnpm run db:seed
 - `rate_limits`: 旧バージョンとの互換用テーブル（新規投稿では未使用）
 - `report_fingerprints`: 1時間以内の同一内容の重複投稿を防ぐ期限付きハッシュ
 
-閲覧時に `reports` 全件を集計せず、投稿時に集計テーブルを更新します。問題のある投稿はD1で `status = 'hidden'` に変更し、`scripts/rebuild-stats.sql` で集計を再構築できます。物理削除は前提にしていません。
+全期間の基本集計は投稿時に集計テーブルを更新します。期間指定・金額中央値はD1で集計し、生の投稿一覧をフロントへ渡しません。問題のある投稿はD1で `status = 'hidden'` に変更し、`scripts/rebuild-stats.sql` で集計を再構築できます。物理削除は前提にしていません。
+
+## 来店期間・金額・先着特典（0010）
+
+- `lib/periods.js` が期間の共通定義。`period=all|period1|period2|period3|7d` を全国・店舗・都道府県・ランキング・最近の投稿APIに指定できます。第1期間8/21〜9/3、第2期間9/4〜9/17、第3期間9/18〜9/30。7日は日本時間の今日を含みます。先着特典切替日基準のサイト内比較であり、別campaignに分割しません。
+- 店舗詳細に3期間比較と金額参考欄。`lib/spend.js` のSQLite window関数で、利用金額、景品数、金額/景品、景品/1,000円の各来店値の**中央値**を算出。各指標5件以上、金額帯も5件以上で表示（定数化）。大人数利用を金額だけで除外せず、景品0個は金額/景品だけ対象外。価格改定・人数・注文内容の違いに注意する注記があります。
+- かんたん入力の `simpleGuaranteedPrizeCount` は空欄=NULL、なし=0。合計から確定分を引いた抽選由来景品数は金額参考欄に限定し、当選率・カテゴリ割合・ランキングへ混ぜません。抽選/確定の中央値は内訳回答のある投稿のみ。従来の `guaranteedPrizeCount` は詳しく入力の互換性を維持します。
+- 投稿は入力→確認→送信。確認画面は投稿内容だけの許可リストから生成し、認証情報は表示しません。連打を防止し、完了後にX・Web Share・URLコピーを提供。共有には店舗名とサイトURLだけを含め、金額を含めません。
+- 順位は `lib/stats.js` の95% Wilson下限、表示割合は補正前の値。完全入力5件・抽選景品50個の下限は維持。景品数の補正であり、母集団の封入率や投稿選択バイアスを推定するものではありません。
+- `data/benefits.json` で先着特典名・開始日・条件・出典を管理。終了日NULLは「無くなり次第終了」。公式情報で確認したミニ巾着・湯呑み・寿司皿を登録しています。
+- `GET /api/stores/:id/benefits?campaign=` は各特典の最新1件と24時間の状態別件数だけ返し、トップでは取得しません。24h/48h/古い報告を分け、現況を断定しません。
+- `POST /api/benefit-reports` は `storeId, benefitId, observedAt`（UTC ISO日時）, `availability`（available/unavailable/unknown）, `turnstileToken` を受付。別の `benefit_reports` に保存し、既存統計へ影響しません。Turnstile actionは `benefit_submit`、任意Google認証・BAN・ハッシュ方式を再利用。restrictedはpending。別の `benefit_submission_slots` で匿名5件/ログイン20件/制限中5件の日次上限、同じ利用者・店舗・特典へ1時間1件を原子的に制御します。
+- 特典の非表示は管理者が `benefit_reports.status='hidden'` に変更。通常結果の取り下げAPIは特典には適用しません。ハッシュ30日、日次枠35日、重複キー1時間で期限切れを掃除します。公開APIは個人情報を返しません。
+- 外部情報の既存仕様（初期並び順、URL未登録activeの表示）は維持。期間指定中も外部件数は全期間の収集件数であり、統計からは除外します。
+
+検証前に `pnpm run db:migrate` → `pnpm run db:seed` → `pnpm run seed:external` でローカルD1を同期し、最後に `pnpm run verify`。本番は追加migration→特典マスタseed→最後に1回のPages反映の順です。
 
 ## API
 
 - `GET /api/campaigns`
 - `GET /api/stores?q=&prefecture=&campaign=&limit=&cursor=`
-- `GET /api/stores/:id?campaign=&period=all|7d`
+- `GET /api/stores/:id?campaign=&period=all|period1|period2|period3|7d`
 - `GET /api/stores/:id/reports?campaign=&limit=`
 - `GET /api/stores/:id/external-reports?campaign=&limit=`
 - `GET /api/stats?campaign=`
@@ -171,7 +186,7 @@ pnpm run build
 3. Firebase AuthenticationでGoogleプロバイダーを有効化
 4. Firebase Authorized domainsへ `review.chiikatsu-map.com` を追加（APIキーを制限している場合は同ドメインも許可）
 5. Cloudflare Pagesに `TURNSTILE_SECRET_KEY`、`RATE_LIMIT_SALT`、`ABUSE_HASH_SALT`、`USER_ID_SECRET` をSecretとして設定
-6. リモートD1へ `0009_simple_report_input.sql` までmigrationを適用し、通常seedとexternal seedを投入
+6. リモートD1へ `0010_period_spend_benefits.sql` までmigrationを適用し、通常seed（特典マスタ含む）とexternal seedを投入
 7. Pagesを一度だけ再デプロイ
 8. 匿名投稿、Googleログイン、ログアウト、残り投稿件数、上限到達時の表示を確認
 9. `pending`投稿が公開集計・最近の投稿に含まれないことを確認

@@ -110,13 +110,13 @@ test("店舗詳細を開閉し、フォーカスを戻す", async ({ page }) => 
   const trigger = page.locator('[data-store-id="kura-664"]');
   await trigger.click();
   await expect(page.getByRole("dialog", { name: "新宿靖国通り店" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "全期間" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('[data-store-period="all"]')).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#detail-period-note")).toHaveText("全期間の集計");
   await expect(page.getByRole("heading", { name: "通常", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "ビッくらポン！プラス", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "直近7日" }).click();
-  await expect(page.getByRole("button", { name: "直近7日" })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator("#detail-period-note")).toContainText("から今日まで");
+  await page.locator('[data-store-period="7d"]').click();
+  await expect(page.locator('[data-store-period="7d"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#detail-period-note")).toContainText("の来店分");
   await page.getByRole("button", { name: "店舗詳細を閉じる" }).click();
   await expect(trigger).toBeFocused();
 });
@@ -130,7 +130,7 @@ test("不正な回数は投稿前にエラーになる", async ({ page }) => {
   await page.getByLabel("景品の内訳をどこまで入力できますか？ 必須").selectOption("partial");
   await page.locator("#panel-draws").fill("1");
   await page.locator("#panel-wins").fill("2");
-  await page.getByRole("button", { name: "この内容で投稿" }).click();
+  await page.getByRole("button", { name: "入力内容を確認" }).click();
   await expect(page.getByRole("alert")).toContainText("抽選回数以下");
 });
 
@@ -436,7 +436,8 @@ test("投稿時に合計景品を送信し、Turnstile失敗時は確認を更�
   await page.getByLabel("確定セット・対象商品など").fill("1");
   await page.getByLabel("景品の内訳をどこまで入力できますか？ 必須").selectOption("complete");
   await page.locator("#prize-total\\:chiikawa-2026-figure").fill("2");
-  await page.getByRole("button", { name: "この内容で投稿" }).click();
+  await page.getByRole("button", { name: "入力内容を確認" }).click();
+  await page.getByRole("button", { name: "投稿する", exact: true }).click();
   const formError = page.getByRole("alert");
   await expect(formError).toContainText("投稿確認を更新");
   await expect(formError).toBeFocused();

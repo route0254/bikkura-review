@@ -66,6 +66,16 @@
         </label>
       </section>
 
+      <section class="site-intro" aria-labelledby="site-intro-title">
+        <h2 id="site-intro-title">このサイトでわかること</h2>
+        <ul><li>店舗ごとの結果</li><li>○円で景品○個</li><li>グッズ・キャラクターの割合</li><li>来店期間ごとの違い</li></ul>
+      </section>
+      <section class="period-filter" aria-labelledby="period-filter-title">
+        <h2 id="period-filter-title">来店期間で比較</h2>
+        <div id="period-filter" class="period-tabs" role="group" aria-label="来店期間"></div>
+        <p id="period-filter-note" class="section-note section-note-left">先着特典切替日を基準にしたサイト内比較期間です。ビッくらポン景品自体の公式な「弾」ではありません。</p>
+        <p id="period-load-status" role="status"></p>
+      </section>
       <section class="stats-section" aria-labelledby="stats-title">
         <div class="section-heading">
           <div>
@@ -81,6 +91,7 @@
           <article class="stat-card"><span>抽選景品数</span><strong>—</strong><small>個</small></article>
         </div>
         <div id="simple-summary" class="simple-summary" hidden></div>
+        <details id="national-spend" class="national-spend"><summary>○円で○個・利用金額の参考データ</summary><div id="national-spend-body"></div></details>
         <div class="prize-summary" id="prize-summary" hidden></div>
         <p id="coverage-summary" class="coverage-summary" aria-live="polite"></p>
       </section>
@@ -144,6 +155,7 @@
           <p class="section-note">景品内訳をすべて入力した投稿が5件以上、対象景品が50個以上の店舗だけを掲載します。</p>
         </div>
         <p class="ranking-caution">利用者投稿データを集計した参考値です。公式の景品封入率や店舗ごとの実際の提供割合を示すものではありません。</p>
+        <p class="ranking-method section-note section-note-left">順位は投稿数・対象景品数の差による偏りを抑えるため、サンプル数を考慮して算出しています。表示割合そのものではなく、件数を考慮した順位です。</p>
         <div id="ranking-status" class="status-message" role="status" aria-live="polite">ランキングタブを開くと読み込みます。</div>
         <ol id="ranking-list" class="ranking-list"></ol>
       </section>
@@ -226,7 +238,9 @@
               <label class="field field-emphasis" for="spend-amount"><span>使った金額 <b>必須</b></span><span class="suffix-input"><input id="spend-amount" name="spendAmountYen" type="number" min="1" max="1000000" step="100" inputmode="numeric" placeholder="例：5000" required><small>円</small></span></label>
               <label class="field" for="reported-total-draws"><span>抽選した回数 <em>任意</em></span><span class="suffix-input"><input id="reported-total-draws" name="reportedTotalDraws" type="number" min="0" max="300" inputmode="numeric" placeholder="覚えていれば"><small>回</small></span></label>
               <label class="field field-emphasis" for="reported-prize-count"><span>もらった景品の合計 <b>必須</b></span><span class="suffix-input"><input id="reported-prize-count" name="reportedPrizeCount" type="number" min="0" max="300" inputmode="numeric" placeholder="0" required><small>個</small></span></label>
+              <label class="field" for="simple-guaranteed-count"><span>うち、セット等で確定でもらった景品 <em>任意</em></span><span class="suffix-input"><input id="simple-guaranteed-count" name="simpleGuaranteedPrizeCount" type="number" min="0" max="300" inputmode="numeric" placeholder="不明なら空欄・なしなら0"><small>個</small></span></label>
             </div>
+            <p class="section-note section-note-left">湯呑み・寿司皿など、お会計の先着特典は景品合計に含めないでください。確定セットの個数が空欄の場合、抽選／確定の内訳は「不明」で保存します。</p>
             <details class="optional-prize-details">
               <summary>景品の種類も覚えていたら入力（任意）</summary>
               <p class="section-note section-note-left">分かる種類だけで大丈夫です。合計との差は「種類不明」として保存します。</p>
@@ -268,14 +282,32 @@
             </fieldset>
           </section>
           <input id="report-campaign" name="campaignId" type="hidden">
+          <section id="report-confirmation" class="report-confirmation" hidden aria-labelledby="confirmation-title"><h3 id="confirmation-title" tabindex="-1">この内容で投稿します</h3><dl id="confirmation-values"></dl><p>店舗と来店日、景品合計をご確認ください。</p></section>
           <div id="turnstile-container" class="turnstile-container" role="group" aria-label="投稿確認"></div>
           <p id="turnstile-status" class="turnstile-note" role="status">投稿確認を準備しています。</p>
-          <div class="form-actions"><button class="button button-secondary" type="button" data-close-report>キャンセル</button><button class="button button-primary" type="submit">この内容で投稿</button></div>
+          <div class="form-actions"><button id="report-cancel" class="button button-secondary" type="button" data-close-report>キャンセル</button><button id="report-edit" class="button button-secondary" type="button" hidden>戻って修正</button><button id="report-submit" class="button button-primary" type="submit">入力内容を確認</button></div>
           <p id="form-status" class="form-status" role="status" aria-live="polite"></p>
+          <section id="report-success" class="report-success" hidden aria-labelledby="report-success-title"><h3 id="report-success-title" tabindex="-1">投稿ありがとうございました</h3><p>店舗名と投稿したことだけを共有できます。金額や個人情報は含めません。</p><div class="share-actions"><a id="posted-x-share" class="button button-primary" target="_blank" rel="noopener noreferrer">Xで共有</a><button id="posted-share" class="button button-secondary" type="button">共有・URLコピー</button><button class="button button-secondary" type="button" data-close-report>閉じる</button></div><p id="posted-share-status" role="status"></p></section>
         </form>
       </div>
     </dialog>
 
+    <dialog id="benefit-dialog" class="dialog" aria-labelledby="benefit-dialog-title">
+      <div class="dialog-frame">
+        <div class="dialog-header"><h2 id="benefit-dialog-title">先着特典の状況を投稿</h2><button class="icon-button" type="button" data-close-benefit aria-label="特典投稿を閉じる">×</button></div>
+        <form id="benefit-form" class="report-form" novalidate>
+          <p><strong id="benefit-store-name"></strong><br><span id="benefit-name"></span></p>
+          <p class="section-note section-note-left">実際に受け取った・案内された日時を入力してください。通常の結果投稿とは別枠です（匿名1日5件、ログイン1日20件、制限中5件）。</p>
+          <div id="benefit-errors" class="form-errors" role="alert" tabindex="-1" hidden></div>
+          <label class="field" for="benefit-observed-at"><span>確認日時（日本時間） <b>必須</b></span><input id="benefit-observed-at" type="datetime-local" required></label>
+          <label class="field" for="benefit-availability"><span>確認した状態 <b>必須</b></span><select id="benefit-availability" required><option value="">選択してください</option><option value="available">受け取れた</option><option value="unavailable">配布終了と案内された</option><option value="unknown">確認できなかった</option></select></label>
+          <div id="benefit-turnstile" class="turnstile-container" role="group" aria-label="特典投稿確認"></div>
+          <p id="benefit-turnstile-status" class="turnstile-note" role="status">投稿確認を準備しています。</p>
+          <div class="form-actions"><button class="button button-secondary" type="button" data-close-benefit>閉じる</button><button id="benefit-submit" class="button button-primary" type="submit">特典の状況を送信</button></div>
+          <p id="benefit-form-status" class="form-status" role="status" tabindex="-1"></p>
+        </form>
+      </div>
+    </dialog>
     <dialog id="my-reports-dialog" class="dialog" aria-labelledby="my-reports-title">
       <div class="dialog-frame">
         <div class="dialog-header">

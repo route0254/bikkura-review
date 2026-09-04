@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 const root = new URL("../", import.meta.url);
 const stores = JSON.parse(await readFile(new URL("data/stores.json", root), "utf8"));
 const campaigns = JSON.parse(await readFile(new URL("data/campaigns.json", root), "utf8"));
+const benefits = JSON.parse(await readFile(new URL("data/benefits.json", root), "utf8"));
 const errors = [];
 
 function checkUnique(items, label) {
@@ -16,6 +17,13 @@ function checkUnique(items, label) {
 
 checkUnique(stores, "stores");
 checkUnique(campaigns, "campaigns");
+checkUnique(benefits, "benefits");
+for (const benefit of benefits) {
+  const campaign = campaigns.find((c) => c.id === benefit.campaignId);
+  if (!campaign || !benefit.name || !benefit.conditions || typeof benefit.active !== "boolean" || !Number.isInteger(benefit.sortOrder)) errors.push(`${benefit.id}: 特典マスタが不正です`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(benefit.startsOn) || (campaign && (benefit.startsOn < campaign.startsOn || benefit.startsOn > campaign.endsOn)) || (benefit.endsOn !== null && (!/^\d{4}-\d{2}-\d{2}$/.test(benefit.endsOn) || benefit.endsOn < benefit.startsOn))) errors.push(`${benefit.id}: 特典期間が不正です`);
+  try { if (new URL(benefit.sourceUrl).protocol !== "https:") throw new Error(); } catch { errors.push(`${benefit.id}: 特典出典URLが不正です`); }
+}
 checkUnique(campaigns.flatMap((campaign) => campaign.prizeCategories ?? []), "prizeCategories");
 checkUnique(campaigns.flatMap((campaign) => campaign.prizeItems ?? []), "prizeItems");
 

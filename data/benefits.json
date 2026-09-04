@@ -1,0 +1,35 @@
+[
+  {
+    "id": "chiikawa-2026-benefit-1",
+    "campaignId": "chiikawa-kurasushi-2026-summer",
+    "name": "第1弾 ミニ巾着",
+    "startsOn": "2026-08-21",
+    "endsOn": null,
+    "conditions": "税込3,000円のお会計ごとに先着配布。お持ち帰りを含む（どこでもくら寿司・出前館・Uber Eats・menuの注文は対象外）。無くなり次第終了。",
+    "sourceUrl": "https://www.kurasushi.co.jp/author/008384.html",
+    "sortOrder": 1,
+    "active": true
+  },
+  {
+    "id": "chiikawa-2026-benefit-2",
+    "campaignId": "chiikawa-kurasushi-2026-summer",
+    "name": "第2弾 湯呑み",
+    "startsOn": "2026-09-04",
+    "endsOn": null,
+    "conditions": "税込3,000円のお会計ごとに先着配布。お持ち帰りを含む（どこでもくら寿司・出前館・Uber Eats・menuの注文は対象外）。無くなり次第終了。",
+    "sourceUrl": "https://www.kurasushi.co.jp/author/008384.html",
+    "sortOrder": 2,
+    "active": true
+  },
+  {
+    "id": "chiikawa-2026-benefit-3",
+    "campaignId": "chiikawa-kurasushi-2026-summer",
+    "name": "第3弾 寿司皿",
+    "startsOn": "2026-09-18",
+    "endsOn": null,
+    "conditions": "税込3,000円のお会計ごとに先着配布。お持ち帰りを含む（どこでもくら寿司・出前館・Uber Eats・menuの注文は対象外）。無くなり次第終了。",
+    "sourceUrl": "https://www.kurasushi.co.jp/author/008384.html",
+    "sortOrder": 3,
+    "active": true
+  }
+]

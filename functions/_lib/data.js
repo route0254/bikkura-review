@@ -1,3 +1,5 @@
+import { periodOptions } from "../../lib/periods.js";
+
 export async function getCampaign(db, requestedId) {
   if (requestedId) {
     return db.prepare("SELECT id, name, starts_on, ends_on, source_url FROM campaigns WHERE id = ? AND published = 1").bind(requestedId).first();
@@ -6,7 +8,7 @@ export async function getCampaign(db, requestedId) {
 }
 
 export function mapCampaign(row) {
-  return row ? { id: row.id, name: row.name, startsOn: row.starts_on, endsOn: row.ends_on, sourceUrl: row.source_url } : null;
+  return row ? { id: row.id, name: row.name, startsOn: row.starts_on, endsOn: row.ends_on, sourceUrl: row.source_url, periods: periodOptions(row.id) } : null;
 }
 
 export function mapStore(row) {

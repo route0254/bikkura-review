@@ -1,7 +1,7 @@
 import { getCampaign, mapCampaign, mapSimpleSummary, mapStore, mapUsageStats } from "../../_lib/data.js";
 import { apiError, cacheHeaders, json, unavailable } from "../../_lib/http.js";
-import { periodStartDate } from "../../../lib/stats.js";
-import { todayInJapan } from "../../../lib/validation.js";
+import { resolvePeriod } from "../../../lib/periods.js";
+import { readPeriodComparison, readSpendStats } from "../../_lib/period-stats.js";
 
 async function allPeriodStats(db, storeId, campaignId) {
   const [totals, completeReports, usageResult, prizeResult] = await Promise.all([
@@ -200,6 +200,7 @@ async function guaranteedPrizeCount(db, storeId, campaignId, startDate, endDate)
   const bindings = startDate ? [storeId, campaignId, startDate, endDate] : [storeId, campaignId];
   const row = await db.prepare(`
     SELECT COALESCE(SUM(CASE
+      WHEN report.result_input_mode = 'simple' THEN report.simple_guaranteed_prize_count
       WHEN report.prize_input_mode = 'total' THEN report.guaranteed_prize_count
       ELSE COALESCE((SELECT SUM(quantity) FROM report_guaranteed_prizes WHERE report_id = report.id), 0)
     END), 0) AS quantity
@@ -213,23 +214,26 @@ export async function onRequestGet({ request, env, params }) {
   try {
     const url = new URL(request.url);
     const period = url.searchParams.get("period") ?? "all";
-    if (!new Set(["all", "7d"]).has(period)) return apiError("集計期間が不正です。", 400);
     const campaign = await getCampaign(env.DB, url.searchParams.get("campaign"));
     const store = await env.DB.prepare("SELECT * FROM stores WHERE id = ? AND active = 1").bind(params.id).first();
     if (!store) return apiError("店舗が見つかりません。", 404);
     if (!campaign) return json({ ...mapStore(store), campaign: null, period, periodStart: null, usage: [], prizes: [], itemPrizes: [], guaranteedPrizeCount: 0, guaranteedPrizes: [], simple: mapSimpleSummary(), national: null }, { headers: cacheHeaders(60) });
 
-    const today = todayInJapan();
-    const periodStart = periodStartDate(today, period);
-    const [result, national, itemPrizes, guaranteedPrizes, guaranteedCount, simple] = await Promise.all([
-      period === "7d"
-        ? recentPeriodStats(env.DB, store.id, campaign.id, periodStart, today)
+    const selectedPeriod = resolvePeriod(campaign.id, period);
+    if (!selectedPeriod) return apiError("集計期間が不正です。", 400);
+    const periodStart = selectedPeriod.startsOn;
+    const periodEnd = selectedPeriod.endsOn;
+    const [result, national, itemPrizes, guaranteedPrizes, guaranteedCount, simple, spend, comparison] = await Promise.all([
+      periodStart
+        ? recentPeriodStats(env.DB, store.id, campaign.id, periodStart, periodEnd)
         : allPeriodStats(env.DB, store.id, campaign.id),
-      nationalPrizeStats(env.DB, campaign.id, periodStart, today),
-      itemPrizeStats(env.DB, store.id, campaign.id, periodStart, today),
-      guaranteedPrizeStats(env.DB, store.id, campaign.id, periodStart, today),
-      guaranteedPrizeCount(env.DB, store.id, campaign.id, periodStart, today),
-      simpleReportStats(env.DB, store.id, campaign.id, periodStart, today),
+      nationalPrizeStats(env.DB, campaign.id, periodStart, periodEnd),
+      itemPrizeStats(env.DB, store.id, campaign.id, periodStart, periodEnd),
+      guaranteedPrizeStats(env.DB, store.id, campaign.id, periodStart, periodEnd),
+      guaranteedPrizeCount(env.DB, store.id, campaign.id, periodStart, periodEnd),
+      simpleReportStats(env.DB, store.id, campaign.id, periodStart, periodEnd),
+      readSpendStats(env.DB, campaign.id, selectedPeriod, store.id),
+      readPeriodComparison(env.DB, store.id, campaign.id),
     ]);
     const completePrizeCount = result.prizes.reduce((sum, prize) => sum + Number(prize.quantity ?? 0), 0);
     const mappedStore = mapStore({ ...store, ...result.totals, complete_report_count: result.completeReports, complete_prize_count: completePrizeCount });
@@ -238,6 +242,9 @@ export async function onRequestGet({ request, env, params }) {
       campaign: mapCampaign(campaign),
       period,
       periodStart,
+      periodEnd,
+      spend,
+      comparison,
       usage: mapUsageStats(result.usage),
       prizes: result.prizes.map((prize) => ({ id: prize.id, name: prize.name, quantity: Number(prize.quantity ?? 0) })),
       itemPrizes,

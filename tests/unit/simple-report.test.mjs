@@ -65,6 +65,12 @@ test("simple totals participate in duplicate detection", async () => {
   assert.notEqual(original, await createReportFingerprint("visitor-hash", { ...simple, spendAmountYen: 6000 }));
   assert.notEqual(original, await createReportFingerprint("visitor-hash", { ...simple, reportedTotalDraws: 10 }));
   assert.notEqual(original, await createReportFingerprint("visitor-hash", { ...simple, reportedPrizeCount: 4 }));
+  assert.notEqual(original, await createReportFingerprint("visitor-hash", { ...simple, simpleGuaranteedPrizeCount: 0 }));
+});
+
+test("simple guaranteed count is nullable and cannot exceed total prizes", () => {
+  for (const value of [null, 0, 1, 3]) assert.deepEqual(validateReportPayload({ ...simple, simpleGuaranteedPrizeCount: value }, context), []);
+  for (const value of [-1, 4, 0.5, "1"]) assert.notDeepEqual(validateReportPayload({ ...simple, simpleGuaranteedPrizeCount: value }, context), []);
 });
 
 test("simple input does not infer zero wins for risk scoring", () => {

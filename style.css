@@ -374,6 +374,61 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
   .ranking-rate { grid-column: 2; text-align: left; }
 }
 
+.site-intro { padding: 15px 3px; }
+.site-intro h2, .period-filter h2 { font-size: .94rem; margin: 0 0 9px; }
+.site-intro ul { display: flex; flex-wrap: wrap; gap: 7px; padding: 0; margin: 0; list-style: none; }
+.site-intro li { padding: 5px 10px; border-radius: 8px; background: var(--lavender-soft); color: #514a62; font-size: .77rem; }
+.period-filter { margin: 4px 0 22px; }
+.period-tabs { display: flex; flex-wrap: wrap; width: fit-content; max-width: 100%; }
+.period-tabs button { min-height: 44px; }
+#period-load-status:empty { display: none; }
+.national-spend { margin-top: 12px; padding: 14px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.national-spend > summary, .spend-bands > summary { cursor: pointer; font-weight: 700; }
+.national-spend > div { margin-top: 14px; }
+.spend-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.spend-metrics > div { padding: 12px; background: var(--lavender-soft); border-radius: 10px; }
+.spend-metrics dt, .spend-metrics small { color: #514a62; font-size: .75rem; }
+.spend-metrics dd { font-size: 1.15rem; font-weight: 800; margin: 4px 0; }
+.spend-metrics dd small { display: block; margin-top: 4px; font-weight: 400; }
+.spend-bands { margin: 12px 0; }
+.comparison-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
+.comparison-grid article { border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.comparison-grid h4 { margin: 0; }
+.comparison-grid small { color: var(--muted); font-size: .7rem; }
+.comparison-grid dl { margin: 9px 0 0; font-size: .78rem; }
+.comparison-grid dl > div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; }
+.comparison-grid dd { margin: 0; font-weight: 700; }
+.report-form.is-confirming .report-step, .report-form.is-confirming > .form-intro { display: none; }
+.report-form.is-success > :not(#report-success):not(#form-status) { display: none; }
+.report-confirmation h3, .report-success h3 { scroll-margin-top: 95px; }
+.report-confirmation dl > div { display: grid; grid-template-columns: 1fr 1.3fr; gap: 10px; border-bottom: 1px solid var(--line); padding: 10px 0; }
+.report-confirmation dt { color: var(--muted); }
+.report-confirmation dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.share-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.share-actions a { text-decoration: none; }
+.ranking-method { margin-top: 10px; }
+.benefit-card { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px; margin: 12px 0; }
+.benefit-card h4 { margin: 0 0 4px; }
+.benefit-card p, .benefit-card details { font-size: .8rem; }
+.benefit-card time, .benefit-card small { color: var(--muted); font-size: .76rem; }
+.benefit-latest { font-weight: 700; }
+.benefit-freshness { color: #514a62; }
+.benefit-stale { background: var(--grey-soft); }
+.benefit-stale .benefit-latest { font-weight: 500; color: var(--muted); }
+.benefit-stale .benefit-freshness { font-weight: 700; }
+.benefit-card .button { margin-top: 12px; }
+#benefit-form > .field { margin-top: 18px; }
+#benefit-form-status, #benefit-errors { scroll-margin-top: 90px; }
+@media (max-width: 480px) {
+  .period-tabs button { padding-inline: 9px; font-size: .8rem; }
+  .comparison-grid { grid-template-columns: 1fr; }
+  .comparison-grid article { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 12px; }
+  .comparison-grid small { grid-column: 1; }
+  .comparison-grid dl { grid-column: 2; grid-row: 1 / 3; margin: 0; }
+  .spend-metrics dd { font-size: 1rem; }
+  .report-confirmation dl > div { font-size: .86rem; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }

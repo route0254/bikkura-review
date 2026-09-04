@@ -44,7 +44,8 @@ test("simple input is the default and submits spend, optional draws, and total p
   await page.locator(".optional-prize-details summary").click();
   await page.locator("#simple-prize-chiikawa-2026-figure").fill("1");
   await page.locator("#simple-prize-chiikawa-2026-can-badge").fill("2");
-  await page.getByRole("button", { name: "この内容で投稿" }).click();
+  await page.getByRole("button", { name: "入力内容を確認" }).click();
+  await page.getByRole("button", { name: "投稿する", exact: true }).click();
 
   const error = page.getByRole("alert");
   await expect(error).toBeVisible();

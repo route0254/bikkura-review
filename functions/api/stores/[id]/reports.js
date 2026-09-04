@@ -1,24 +1,28 @@
 import { getCampaign } from "../../../_lib/data.js";
 import { apiError, boundedLimit, cacheHeaders, json, unavailable } from "../../../_lib/http.js";
+import { periodCondition, resolvePeriod } from "../../../../lib/periods.js";
 
 export async function onRequestGet({ request, env, params }) {
   try {
     const url = new URL(request.url);
     const campaign = await getCampaign(env.DB, url.searchParams.get("campaign"));
     if (!campaign) return apiError("キャンペーンが見つかりません。", 404);
+    const period = resolvePeriod(campaign.id, url.searchParams.get("period") ?? "all");
+    if (!period) return apiError("集計期間が不正です。", 400);
+    const dates = periodCondition(period);
     const limit = boundedLimit(url.searchParams.get("limit"), 10, 50);
     const reports = (await env.DB.prepare(`
       SELECT id, visit_date, usage_type, panel_draws, panel_wins, mobile_draws, mobile_wins,
         unknown_prize_count, prize_breakdown_status, prize_input_mode, result_input_mode,
-        spend_amount_yen, reported_total_draws, reported_prize_count,
+        spend_amount_yen, reported_total_draws, reported_prize_count, simple_guaranteed_prize_count,
         CASE WHEN prize_input_mode = 'total' THEN guaranteed_prize_count
           ELSE COALESCE((SELECT SUM(quantity) FROM report_guaranteed_prizes WHERE report_id = active_user_reports.id), 0)
         END AS guaranteed_prize_count,
         created_at
       FROM active_user_reports
-      WHERE store_id = ? AND campaign_id = ?
+      WHERE store_id = ? AND campaign_id = ? ${dates.sql}
       ORDER BY created_at DESC, id DESC LIMIT ?
-    `).bind(params.id, campaign.id, limit).all()).results;
+    `).bind(params.id, campaign.id, ...dates.bindings, limit).all()).results;
     let prizes = [];
     if (reports.length) {
       const placeholders = reports.map(() => "?").join(",");
@@ -43,6 +47,7 @@ export async function onRequestGet({ request, env, params }) {
       guaranteedPrizeCount: Number(report.guaranteed_prize_count),
       prizeInputMode: report.prize_input_mode,
       resultInputMode: report.result_input_mode,
+      simpleGuaranteedPrizeCount: report.simple_guaranteed_prize_count ?? null,
       spendAmountYen: report.spend_amount_yen === null ? null : Number(report.spend_amount_yen),
       reportedTotalDraws: report.reported_total_draws === null ? null : Number(report.reported_total_draws),
       reportedPrizeCount: report.reported_prize_count === null ? null : Number(report.reported_prize_count),

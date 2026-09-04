@@ -4,6 +4,7 @@ import { normalizeSearchText } from "../lib/search.js";
 const root = new URL("../", import.meta.url);
 const stores = JSON.parse(await readFile(new URL("data/stores.json", root), "utf8"));
 const campaigns = JSON.parse(await readFile(new URL("data/campaigns.json", root), "utf8"));
+const benefits = JSON.parse(await readFile(new URL("data/benefits.json", root), "utf8"));
 const outputUrl = new URL("seed/seed.sql", root);
 const sql = [];
 const quote = (value) => value === null || value === undefined ? "NULL" : `'${String(value).replaceAll("'", "''")}'`;
@@ -17,6 +18,9 @@ for (const campaign of campaigns) {
   }
   const itemIds = (campaign.prizeItems ?? []).map((item) => quote(item.id));
   if (itemIds.length) sql.push(`UPDATE prize_items SET active = 0 WHERE campaign_id = ${quote(campaign.id)} AND id NOT IN (${itemIds.join(", ")});`);
+}
+for (const benefit of benefits) {
+  sql.push(`INSERT INTO benefit_campaigns (id, campaign_id, name, starts_on, ends_on, conditions, source_url, sort_order, active) VALUES (${quote(benefit.id)}, ${quote(benefit.campaignId)}, ${quote(benefit.name)}, ${quote(benefit.startsOn)}, ${quote(benefit.endsOn)}, ${quote(benefit.conditions)}, ${quote(benefit.sourceUrl)}, ${Number(benefit.sortOrder)}, ${benefit.active ? 1 : 0}) ON CONFLICT(id) DO UPDATE SET name=excluded.name, starts_on=excluded.starts_on, ends_on=excluded.ends_on, conditions=excluded.conditions, source_url=excluded.source_url, sort_order=excluded.sort_order, active=excluded.active;`);
 }
 for (const store of stores) {
   const searchText = normalizeSearchText([store.name, store.prefecture, store.city, store.address].join(" "));

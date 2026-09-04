@@ -5,11 +5,22 @@ import { validateReportPayload } from "/lib/validation.js";
 import { getIdToken, initializeAuth, signIn, signOut } from "/auth.js";
 import { requiredElement, requiredElements } from "/lib/dom.js";
 import { sortStores } from "/lib/store-sorting.js";
+import { periodOptions, resolvePeriod } from "/lib/periods.js";
+import { confirmationRows, postedShareData } from "/lib/report-confirmation.js";
+import { comparisonMarkup, spendMarkup } from "/lib/insights-ui.js";
+import { initializeBenefitUI, loadStoreBenefits } from "/lib/benefits-ui.js";
 
 const STORE_RENDER_BATCH_SIZE = 60;
 const state = { stores: [], campaigns: [], campaign: null, stats: null, selectedStoreId: null, lastTrigger: null, visibleStoreCount: STORE_RENDER_BATCH_SIZE, auth: { enabled: false, authenticated: false }, posting: null, rankingLoaded: false, prefecturesLoaded: false, resultView: "stores", userLocation: null };
 let turnstileWidgetId = null;
 let turnstileLoader = null;
+state.period = "all";
+let reviewedPayload = null;
+let reportSending = false;
+let reportSent = false;
+let postedShare = null;
+let detailRequest = 0;
+let campaignRequest = 0;
 
 const elements = {
   campaignSelect: requiredElement("#campaign-select"),
@@ -153,6 +164,7 @@ function simpleReportLine(report) {
   const parts = [`約${formatYen(report.spendAmountYen)}利用`];
   if (report.reportedTotalDraws !== null && report.reportedTotalDraws !== undefined) parts.push(`抽選${Number(report.reportedTotalDraws).toLocaleString("ja-JP")}回`);
   parts.push(`景品${Number(report.reportedPrizeCount ?? 0).toLocaleString("ja-JP")}個`);
+  parts.push(report.simpleGuaranteedPrizeCount == null ? "確定セット等の内訳不明" : `うち確定セット等${report.simpleGuaranteedPrizeCount}個`);
   return parts.join("・");
 }
 
@@ -198,6 +210,7 @@ function renderStats() {
   elements.statsGrid.innerHTML = cards.map(([label, value, unit, className]) => `<article class="stat-card ${className}"><span>${label}</span><strong>${Number(value).toLocaleString("ja-JP")}</strong><small>${unit}</small></article>`).join("");
   elements.statsGrid.setAttribute("aria-busy", "false");
   renderSimpleSummary(elements.simpleSummary, stats.simple);
+  document.querySelector("#national-spend-body").innerHTML = spendMarkup(stats.spend);
   const prizes = stats.prizes ?? state.campaign?.prizeCategories?.map((prize) => ({ name: prize.name, quantity: 0 })) ?? [];
   elements.prizeSummary.hidden = prizes.length === 0;
   const enoughPrizeData = hasEnoughPrizeData(stats);
@@ -325,6 +338,8 @@ async function openStore(storeId, trigger) {
   elements.storeDialogTitle.textContent = store.name;
   elements.storeDialogBody.innerHTML = `<p class="detail-address">${escapeHtml(store.address)}</p><div class="period-tabs" aria-label="集計期間"><button type="button" data-store-period="all" aria-pressed="true">全期間</button><button type="button" data-store-period="7d" aria-pressed="false">直近7日</button></div><p id="detail-period-note" class="section-note section-note-left"></p><div class="detail-stats"><div class="detail-stat"><span>投稿</span><strong id="detail-report-count">${stats.reportCount}</strong>件</div><div class="detail-stat"><span>抽選</span><strong id="detail-draw-count">${stats.totalDraws}</strong>回</div><div class="detail-stat"><span>当たり</span><strong id="detail-win-count">${stats.totalWins}</strong>回</div><div class="detail-stat"><span>抽選景品集計</span><strong id="detail-prize-count">${stats.completePrizeCount ?? 0}</strong>個</div></div><div class="detail-actions"><button class="button button-primary" type="button" data-open-report data-store="${escapeHtml(store.id)}">この店舗の結果を投稿</button><button class="button button-secondary" type="button" data-share-store>この店舗を共有</button>${store.officialUrl ? `<a class="button button-secondary" href="${escapeHtml(store.officialUrl)}" target="_blank" rel="noreferrer">公式店舗情報</a>` : ""}</div><section class="detail-section"><h3>通常／ビッくらポン！プラス別の結果</h3><p id="detail-rate-note" class="section-note section-note-left"></p><div id="detail-usage" class="usage-breakdown"></div></section><section class="detail-section"><h3>抽選で当たった景品カテゴリ</h3><p id="detail-prize-note" class="section-note section-note-left">確定セット等を含まず、抽選景品の種類が分かる投稿のみ集計しています。</p><div id="detail-prizes" class="detail-prize-list">${state.campaign?.prizeCategories?.map((prize) => `<div class="recent-report"><p>${escapeHtml(prize.name)} <strong>0個</strong></p></div>`).join("") ?? ""}</div></section><section id="detail-guaranteed-section" class="detail-section" hidden><h3>ビッくらポン！確定のセット等</h3><p class="section-note section-note-left">抽選なしでもらった景品は、当選率・抽選景品割合・ランキングには含めていません。</p><p class="guaranteed-total"><strong id="detail-guaranteed-count">0</strong>個</p></section><section class="detail-section"><h3>個別景品内訳</h3><p class="section-note section-note-left">取得方法を分けずに入力された合計のうち、抽選分を正確に判別できるデータだけを集計します。</p><div id="detail-item-prizes"></div></section><section class="detail-section" aria-labelledby="recent-reports-title"><h3 id="recent-reports-title">みんなの投稿</h3><div id="recent-reports"><p class="section-note section-note-left">投稿データはまだありません。</p></div></section><section class="detail-section external-reference-section" aria-labelledby="external-reports-title"><h3 id="external-reports-title">外部で確認された参考情報</h3><p class="external-reference-notice">X・口コミサイト・ブログ等で一般公開されている情報から確認できた内容です。サイト利用者による直接投稿とは別データで、全国統計やランキングには含めていません。</p><div id="external-reports" aria-live="polite"><p class="section-note section-note-left">外部参考情報を読み込んでいます。</p></div></section>`;
   const detailActions = elements.storeDialogBody.querySelector(".detail-actions");
+  elements.storeDialogBody.querySelector(".period-tabs").innerHTML = periodOptions(state.campaign?.id).map((p) => `<button type="button" data-store-period="${p.id}" aria-pressed="${p.id === state.period}">${p.label}</button>`).join("");
+  detailActions?.insertAdjacentHTML("afterend", `<section id="detail-comparison" class="detail-section"></section><section id="detail-spend" class="detail-section spend-section"></section><section class="detail-section" aria-labelledby="benefits-title"><h3 id="benefits-title">先着特典の最新情報</h3><p class="section-note section-note-left">受け取れた・案内された時点の口コミです。現在の在庫を保証しません。ビッくらポンの統計とは別データです。</p><div id="store-benefits" aria-live="polite">読み込み中…</div></section>`);
   detailActions?.insertAdjacentHTML("beforebegin", `<section id="detail-simple-section" class="detail-section simple-detail-section" hidden><div id="detail-simple-summary" class="simple-summary"></div></section>`);
   const url = new URL(location.href);
   url.searchParams.set("store", storeId);
@@ -332,6 +347,7 @@ async function openStore(storeId, trigger) {
   history.replaceState({}, "", url);
   if (!elements.storeDialog.open) elements.storeDialog.showModal();
   updatePostingAvailability();
+  loadStoreBenefits(store, state.campaign);
   const campaignQuery = `campaign=${encodeURIComponent(state.campaign?.id ?? "")}`;
   fetchJson(`/api/stores/${encodeURIComponent(storeId)}/external-reports?limit=10&${campaignQuery}`)
     .then((external) => { if (state.selectedStoreId === storeId) renderExternalReports(external.items ?? [], stats.externalCollectionCount); })
@@ -339,12 +355,7 @@ async function openStore(storeId, trigger) {
       console.error("外部参考情報の表示に失敗しました。", error);
       if (state.selectedStoreId === storeId) renderExternalReports(null);
     });
-  try {
-    const detail = await fetchJson(`/api/stores/${encodeURIComponent(storeId)}?period=all&${campaignQuery}`);
-    updateStoreDialogStatsV2(detail);
-    const reports = await fetchJson(`/api/stores/${encodeURIComponent(storeId)}/reports?limit=10&${campaignQuery}`);
-    renderRecentReports(reports.items ?? []);
-  } catch { /* Static preview keeps the verified local data. */ }
+  await loadStorePeriod(state.period);
 }
 
 function renderExternalReports(reports, collectedCount = 0) {
@@ -392,7 +403,9 @@ function updateStoreDialogStatsV2(detail) {
     if (target) target.textContent = Number(value ?? 0).toLocaleString("ja-JP");
   }
   const periodNote = document.querySelector("#detail-period-note");
-  if (periodNote) periodNote.textContent = detail.period === "7d" && detail.periodStart ? `${detail.periodStart.replaceAll("-", "/")}から今日まで` : "全期間の集計";
+  if (periodNote) periodNote.textContent = detail.periodStart ? `${detail.periodStart.replaceAll("-", "/")}〜${detail.periodEnd.replaceAll("-", "/")}の来店分` : "全期間の集計";
+  document.querySelector("#detail-spend").innerHTML = spendMarkup(detail.spend);
+  document.querySelector("#detail-comparison").innerHTML = comparisonMarkup(detail.comparison);
   const simpleSection = document.querySelector("#detail-simple-section");
   const simpleSummary = document.querySelector("#detail-simple-summary");
   if (simpleSection && simpleSummary) {
@@ -449,12 +462,21 @@ function updateStoreDialogStatsV2(detail) {
 
 async function loadStorePeriod(period) {
   if (!state.selectedStoreId) return;
+  const requestId = ++detailRequest;
+  const storeId = state.selectedStoreId;
   const buttons = elements.storeDialog.querySelectorAll("[data-store-period]");
   buttons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.storePeriod === period)));
   try {
-    const detail = await fetchJson(`/api/stores/${encodeURIComponent(state.selectedStoreId)}?period=${encodeURIComponent(period)}&campaign=${encodeURIComponent(state.campaign?.id ?? "")}`);
+    const query = `period=${encodeURIComponent(period)}&campaign=${encodeURIComponent(state.campaign?.id ?? "")}`;
+    const [detail, reports] = await Promise.all([
+      fetchJson(`/api/stores/${encodeURIComponent(storeId)}?${query}`),
+      fetchJson(`/api/stores/${encodeURIComponent(storeId)}/reports?limit=10&${query}`),
+    ]);
+    if (requestId !== detailRequest || storeId !== state.selectedStoreId) return;
     updateStoreDialogStatsV2(detail);
+    renderRecentReports(reports.items ?? []);
   } catch {
+    if (requestId !== detailRequest) return;
     const note = document.querySelector("#detail-period-note");
     if (note) note.textContent = "集計を読み込めませんでした。時間をおいて再度お試しください。";
   }
@@ -523,7 +545,9 @@ async function loadRanking() {
   state.rankingLoaded = true;
   elements.rankingStatus.textContent = "ランキングを読み込んでいます。";
   try {
-    const ranking = await fetchJson(`/api/rankings/figure?campaign=${encodeURIComponent(state.campaign.id)}`);
+    const selected = `${state.campaign.id}:${state.period}`;
+    const ranking = await fetchJson(`/api/rankings/figure?campaign=${encodeURIComponent(state.campaign.id)}&period=${state.period}`);
+    if (selected !== `${state.campaign.id}:${state.period}`) return;
     if (!ranking.items?.length) {
       elements.rankingStatus.textContent = `現在ランキング対象となる店舗がありません（完全入力${ranking.minimums.completeReports}件以上・対象景品${ranking.minimums.completePrizes}個以上）。`;
       return;
@@ -541,7 +565,9 @@ async function loadPrefectureStats() {
   state.prefecturesLoaded = true;
   elements.prefectureStatsStatus.textContent = "都道府県別集計を読み込んでいます。";
   try {
-    const result = await fetchJson(`/api/stats/prefectures?campaign=${encodeURIComponent(state.campaign.id)}`);
+    const selected = `${state.campaign.id}:${state.period}`;
+    const result = await fetchJson(`/api/stats/prefectures?campaign=${encodeURIComponent(state.campaign.id)}&period=${state.period}`);
+    if (selected !== `${state.campaign.id}:${state.period}`) return;
     elements.prefectureStatsStatus.textContent = result.items?.length ? `${result.items.length}都道府県に投稿があります。` : "投稿のある都道府県はまだありません。";
     elements.prefectureStatsList.innerHTML = (result.items ?? []).map((item) => `<article><h3>${escapeHtml(item.prefecture)}</h3><dl><div><dt>投稿</dt><dd>${item.reportCount}件</dd></div><div><dt>店舗</dt><dd>${item.reportingStoreCount}店</dd></div><div><dt>抽選</dt><dd>${item.totalDraws}回</dd></div><div><dt>当たり</dt><dd>${item.totalWins}回</dd></div></dl></article>`).join("");
   } catch {
@@ -585,6 +611,11 @@ function closeStore() {
 }
 
 function openReport(storeId, trigger) {
+  if (reportSending) return;
+  reportSent = false;
+  setConfirmation(null);
+  elements.reportForm.classList.remove("is-success");
+  document.querySelector("#report-success").hidden = true;
   if (isCampaignArchived()) {
     alert("終了したキャンペーンには投稿できません。過去データは引き続き閲覧できます。");
     return;
@@ -605,7 +636,7 @@ function openReport(storeId, trigger) {
   ensureTurnstile({ reset: true });
 }
 
-function closeReport() { elements.reportDialog.close(); state.lastTrigger?.focus?.(); }
+function closeReport() { if (!reportSending) { elements.reportDialog.close(); state.lastTrigger?.focus?.(); } }
 
 function renderMyReports(reports) {
   if (!reports.length) {
@@ -677,13 +708,13 @@ async function ensureTurnstile(options = {}) {
     const config = await fetchJson("/api/config");
     if (!config.turnstileSiteKey) throw new Error("Turnstile が未設定です。");
     if (!turnstileLoader) {
-      turnstileLoader = new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-        script.async = true;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.append(script);
+      turnstileLoader = window.turnstile ? Promise.resolve() : new Promise((resolve, reject) => {
+        let script = document.querySelector('script[src^="https://challenges.cloudflare.com/turnstile/v0/api.js"]');
+        const isNew = !script;
+        if (isNew) { script = document.createElement("script"); script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"; script.async = true; }
+        script.addEventListener("load", resolve, { once: true });
+        script.addEventListener("error", reject, { once: true });
+        if (isNew) document.head.append(script);
       });
     }
     await turnstileLoader;
@@ -754,6 +785,7 @@ function formPayload() {
       storeId: data.get("storeId"), campaignId: data.get("campaignId"), visitDate: data.get("visitDate"), usageType: "unknown",
       resultInputMode, spendAmountYen: optionalFormNumber(data, "spendAmountYen"),
       reportedTotalDraws: optionalFormNumber(data, "reportedTotalDraws"), reportedPrizeCount,
+      simpleGuaranteedPrizeCount: optionalFormNumber(data, "simpleGuaranteedPrizeCount"),
       prizeInputMode: "total", guaranteedPrizeCount: 0, prizeBreakdownStatus,
       panelDraws: 0, panelWins: 0, mobileDraws: 0, mobileWins: 0, unknownPrizeCount,
       prizes, itemBreakdowns: [], turnstileToken: currentTurnstileToken(),
@@ -777,13 +809,15 @@ function formPayload() {
 
 async function submitReport(event) {
   event.preventDefault();
-  const payload = formPayload();
+  if (reportSending || reportSent) return;
+  const payload = reviewedPayload ? { ...reviewedPayload, turnstileToken: currentTurnstileToken() } : formPayload();
   const errors = validateForm(payload);
   if (errors.length) {
     elements.formErrors.innerHTML = `<strong>入力内容をご確認ください</strong><ul>${errors.map((error) => `<li>${escapeHtml(error)}</li>`).join("")}</ul>`;
     revealFormErrors();
     return;
   }
+  if (!reviewedPayload) { setConfirmation(payload); return; }
   if (!payload.turnstileToken) {
     elements.formErrors.textContent = "投稿確認がまだ完了していません。確認が完了してから、もう一度投稿してください。";
     revealFormErrors();
@@ -791,6 +825,8 @@ async function submitReport(event) {
     return;
   }
   const submit = elements.reportForm.querySelector('[type="submit"]');
+  reportSending = true;
+  document.querySelector("#report-edit").disabled = true;
   submit.disabled = true; elements.formStatus.textContent = "送信しています…";
   try {
     const response = await fetch("/api/reports", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json", ...await authHeaders() }, body: JSON.stringify(payload) });
@@ -800,6 +836,15 @@ async function submitReport(event) {
       throw new Error(result.errors?.join(" ") ?? result.error ?? "投稿を送信できませんでした。");
     }
     state.posting = result.posting;
+    reportSent = true;
+    postedShare = postedShareData(state.stores.find((store) => store.id === payload.storeId), payload.campaignId);
+    const shareUrl = new URL("https://twitter.com/intent/tweet");
+    shareUrl.searchParams.set("text", `${postedShare.text}\n${postedShare.url}`);
+    document.querySelector("#posted-x-share").href = shareUrl.toString();
+    document.querySelector("#posted-share-status").textContent = "";
+    elements.reportForm.classList.add("is-success");
+    document.querySelector("#report-success").hidden = false;
+    document.querySelector("#report-success-title").focus();
     elements.formErrors.hidden = true;
     elements.formStatus.textContent = result.status === "pending"
       ? "投稿ありがとうございます。内容を確認してから集計に反映します。"
@@ -810,14 +855,37 @@ async function submitReport(event) {
     elements.reportCampaign.value = state.campaign?.id ?? "";
     updateReportStoreOptions("");
     resetItemBreakdowns();
-    if (window.turnstile && turnstileWidgetId !== null) await ensureTurnstile({ reset: true });
-    setTimeout(() => closeReport(), 1300);
+    reviewedPayload = null;
+    activateCampaign(state.campaign.id, { updateUrl: false });
   } catch (error) {
     elements.formErrors.textContent = error.message;
     elements.formStatus.textContent = "";
     revealFormErrors();
   }
-  finally { submit.disabled = false; }
+  finally { reportSending = false; submit.disabled = false; document.querySelector("#report-edit").disabled = false; }
+}
+
+function setConfirmation(payload) {
+  reviewedPayload = payload ? { ...payload, turnstileToken: undefined } : null;
+  elements.reportForm.classList.toggle("is-confirming", Boolean(payload));
+  document.querySelector("#report-confirmation").hidden = !payload;
+  document.querySelector("#report-edit").hidden = !payload;
+  document.querySelector("#report-cancel").hidden = Boolean(payload);
+  document.querySelector("#report-submit").textContent = payload ? "投稿する" : "入力内容を確認";
+  elements.formErrors.hidden = true;
+  if (payload) {
+    document.querySelector("#confirmation-values").innerHTML = confirmationRows(payload, state.stores.find((s) => s.id === payload.storeId), state.campaign).map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("");
+    document.querySelector("#confirmation-title").focus();
+  }
+}
+
+async function sharePostedResult() {
+  if (!postedShare) return;
+  const status = document.querySelector("#posted-share-status");
+  try {
+    if (navigator.share) await navigator.share(postedShare);
+    else { await navigator.clipboard.writeText(postedShare.url); status.textContent = "共有URLをコピーしました。"; }
+  } catch (error) { if (error.name !== "AbortError") status.textContent = "共有できませんでした。「Xで共有」からお試しください。"; }
 }
 
 function revealFormErrors() {
@@ -865,11 +933,18 @@ async function activateCampaign(campaignId, options = {}) {
   const campaign = state.campaigns.find((item) => item.id === campaignId) ?? state.campaigns[0] ?? null;
   if (!campaign) return;
   state.campaign = campaign;
-  const query = `campaign=${encodeURIComponent(campaign.id)}`;
+  if (!resolvePeriod(campaign.id, state.period)) state.period = "all";
+  const requestId = ++campaignRequest;
+  const query = `campaign=${encodeURIComponent(campaign.id)}&period=${state.period}`;
   const [stats, recent] = await Promise.all([
     fetchJson(`/api/stats?${query}`).catch(() => null),
     fetchJson(`/api/recent-reports?${query}&limit=10`).catch(() => ({ items: [] })),
   ]);
+  if (requestId !== campaignRequest) return;
+  document.querySelector("#period-load-status").textContent = stats ? "" : "集計を取得できませんでした。期間を選び直してお試しください。";
+  const focusedPeriod = document.activeElement?.dataset.globalPeriod;
+  document.querySelector("#period-filter").innerHTML = periodOptions(campaign.id).map((p) => `<button type="button" data-global-period="${p.id}" aria-pressed="${state.period === p.id}">${p.label}</button>`).join("");
+  if (focusedPeriod) document.querySelector(`[data-global-period="${CSS.escape(focusedPeriod)}"]`)?.focus({ preventScroll: true });
   const sparseStats = new Map((stats?.stores ?? []).map((entry) => [entry.storeId, entry]));
   state.stores = state.stores.map((store) => ({
     ...store,
@@ -898,6 +973,16 @@ async function activateCampaign(campaignId, options = {}) {
 }
 
 function bindEvents() {
+  initializeBenefitUI({ authHeaders, fetchJson });
+  document.querySelector("#report-edit").addEventListener("click", () => { if (!reportSending) { setConfirmation(null); document.querySelector("#input-mode-title").scrollIntoView({ block: "center" }); elements.reportStore.focus(); } });
+  document.querySelector("#posted-share").addEventListener("click", sharePostedResult);
+  document.querySelector("#period-filter").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-global-period]");
+    if (!button) return;
+    state.period = button.dataset.globalPeriod;
+    document.querySelector("#period-load-status").textContent = "集計を読み込んでいます…";
+    activateCampaign(state.campaign.id);
+  });
   elements.resultViewTabs.forEach((tab) => {
     tab.addEventListener("click", () => selectResultView(tab.dataset.viewTab));
     tab.addEventListener("keydown", handleResultViewKeydown);

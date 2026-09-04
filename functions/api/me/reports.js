@@ -13,7 +13,7 @@ export async function onRequestGet({ request, env }) {
         report.usage_type, report.panel_draws, report.panel_wins,
         report.mobile_draws, report.mobile_wins, report.unknown_prize_count,
         report.prize_breakdown_status, report.prize_input_mode, report.result_input_mode,
-        report.spend_amount_yen, report.reported_total_draws, report.reported_prize_count,
+        report.spend_amount_yen, report.reported_total_draws, report.reported_prize_count, report.simple_guaranteed_prize_count,
         CASE WHEN report.prize_input_mode = 'total' THEN report.guaranteed_prize_count
           ELSE COALESCE((SELECT SUM(quantity) FROM report_guaranteed_prizes WHERE report_id = report.id), 0)
         END AS guaranteed_prize_count,
@@ -57,6 +57,7 @@ export async function onRequestGet({ request, env }) {
         guaranteedPrizeCount: Number(report.guaranteed_prize_count),
         prizeInputMode: report.prize_input_mode,
         resultInputMode: report.result_input_mode,
+        simpleGuaranteedPrizeCount: report.simple_guaranteed_prize_count ?? null,
         spendAmountYen: report.spend_amount_yen === null ? null : Number(report.spend_amount_yen),
         reportedTotalDraws: report.reported_total_draws === null ? null : Number(report.reported_total_draws),
         reportedPrizeCount: report.reported_prize_count === null ? null : Number(report.reported_prize_count),

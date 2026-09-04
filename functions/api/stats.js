@@ -1,11 +1,19 @@
 import { getCampaign, mapCampaign, mapSimpleSummary, mapSummary, mapUsageStats } from "../_lib/data.js";
 import { apiError, cacheHeaders, json, unavailable } from "../_lib/http.js";
+import { resolvePeriod } from "../../lib/periods.js";
+import { readPeriodNationalStats, readSpendStats } from "../_lib/period-stats.js";
 
 export async function onRequestGet({ request, env }) {
   try {
     const url = new URL(request.url);
     const campaign = await getCampaign(env.DB, url.searchParams.get("campaign"));
     if (!campaign) return apiError("キャンペーンが見つかりません。", 404);
+    const period = resolvePeriod(campaign.id, url.searchParams.get("period") ?? "all");
+    if (!period) return apiError("集計期間が不正です。", 400);
+    if (period.id !== "all") {
+      const [stats, spend] = await Promise.all([readPeriodNationalStats(env.DB, campaign.id, period), readSpendStats(env.DB, campaign.id, period)]);
+      return json({ campaign: mapCampaign(campaign), period, ...stats, spend }, { headers: cacheHeaders(60) });
+    }
     const [totals, simple, prizes, breakdown, usageRows, storeRows, storePrizeRows, coverage] = await Promise.all([
       env.DB.prepare(`
         SELECT
@@ -112,6 +120,8 @@ export async function onRequestGet({ request, env }) {
     }
     return json({
       campaign: mapCampaign(campaign),
+      period,
+      spend: await readSpendStats(env.DB, campaign.id, period),
       ...mapSummary({ ...totals, ...breakdown, complete_prize_count: completePrizeCount }),
       simple: mapSimpleSummary(simple),
       prizes: prizeItems,

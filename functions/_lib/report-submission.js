@@ -85,8 +85,8 @@ function reportInsertStatements({ env, payload, identity, risk, reportId, create
       mobile_draws, mobile_wins, unknown_prize_count, status, created_at,
       prize_breakdown_status, user_id, daily_rate_hash, abuse_hash, risk_score, risk_reasons,
       guaranteed_prize_count, prize_input_mode, result_input_mode, spend_amount_yen,
-      reported_total_draws, reported_prize_count
-    ) VALUES (?, 'user', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      reported_total_draws, reported_prize_count, simple_guaranteed_prize_count
+    ) VALUES (?, 'user', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     reportId, payload.storeId, payload.campaignId, payload.visitDate, payload.usageType,
     payload.panelDraws, payload.panelWins, payload.mobileDraws, payload.mobileWins,
@@ -94,6 +94,7 @@ function reportInsertStatements({ env, payload, identity, risk, reportId, create
     identity.userId, identity.dailyRateHash, identity.abuseHash, risk.score, JSON.stringify(risk.reasons),
     guaranteedPrizeCount, prizeInputMode, resultInputMode, payload.spendAmountYen ?? null,
     payload.reportedTotalDraws ?? null, payload.reportedPrizeCount ?? null,
+    payload.simpleGuaranteedPrizeCount ?? null,
   ));
   for (const prize of payload.prizes.filter((item) => item.quantity > 0)) {
     const acquisitionType = acquisitionTypeOf(prize);

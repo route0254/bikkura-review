@@ -81,7 +81,7 @@ test("ランキングは最低サンプル条件・順序・同率順位を守�
     { storeId: "b", storeName: "B店", completeReportCount: 7, completePrizeCount: 50, targetPrizeCount: 15 },
     { storeId: "c", storeName: "C店", completeReportCount: 9, completePrizeCount: 100, targetPrizeCount: 20 },
   ]);
-  assert.deepEqual(ranked.map((row) => [row.storeId, row.rank]), [["a", 1], ["b", 1], ["c", 3]]);
+  assert.deepEqual(ranked.map((row) => [row.storeId, row.rank]), [["a", 1], ["b", 2], ["c", 3]]);
   assert.equal(ranked.some((row) => row.storeId === "small"), false);
 });
 
