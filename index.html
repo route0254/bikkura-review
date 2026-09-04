@@ -108,7 +108,28 @@
         <button id="prefecture-stats-tab" type="button" role="tab" aria-selected="false" aria-controls="prefecture-stats" data-view-tab="prefectures" tabindex="-1">都道府県別集計</button>
       </div>
 
-      <section id="benefits-view" class="result-view-panel" role="tabpanel" aria-labelledby="benefits-tab" data-view-panel="benefits" hidden><h2>先着特典の状況を見る・投稿する</h2><p>受け取れた・案内された時点の報告です。現在の在庫を保証しません。</p><div class="benefit-filters"><label class="field">特典（過去分も選べます）<select id="benefit-select"></select></label><label class="field">絵柄<select id="benefit-item-select"><option value="">全絵柄</option></select></label><label class="field">都道府県<select id="benefit-prefecture"><option value="">全国</option></select></label><label class="field">店舗名<input id="benefit-search" type="search" placeholder="店舗名で絞り込み"></label></div><button id="benefit-search-submit" class="button button-secondary" type="button">絞り込む</button><div class="benefit-post-picker"><h3>この店舗の状況を投稿</h3><label class="field">投稿する店舗<select id="benefit-post-store"><option value="">店舗を選択してください</option></select></label><button id="benefit-post-start" class="button button-primary" type="button">先着特典の状況を投稿</button><p id="benefit-picker-status" role="status"></p></div><div id="benefit-selected-designs"></div><div id="benefit-overview-list" aria-live="polite"></div><button id="benefit-load-more" type="button" class="button button-secondary" hidden>さらに表示</button></section>
+      <section id="benefits-view" class="result-view-panel" role="tabpanel" aria-labelledby="benefits-tab" data-view-panel="benefits" hidden>
+        <h2>先着特典の状況を見る・投稿する</h2>
+        <p>受け取れた・案内された時点の報告です。現在の在庫を保証しません。</p>
+        <div class="benefit-filters">
+          <label class="field">特典（過去分も選べます）<select id="benefit-select"></select></label>
+          <label class="field">絵柄<select id="benefit-item-select"><option value="">全絵柄</option></select></label>
+          <label class="field">都道府県<select id="benefit-prefecture"><option value="">全国</option></select></label>
+          <label class="field">店舗名<input id="benefit-search" type="search" placeholder="店舗名で絞り込み"></label>
+        </div>
+        <button id="benefit-search-submit" class="button button-secondary" type="button">店舗一覧を絞り込む</button>
+        <div class="benefit-post-picker">
+          <h3>店舗を選んで状況を確認</h3>
+          <label class="field">状況を見る・投稿する店舗<select id="benefit-post-store" aria-describedby="benefit-store-help"><option value="">店舗を選択してください</option></select></label>
+          <p id="benefit-store-help" class="section-note section-note-left">報告がない店舗も選べます。選択すると絵柄ごとの状況を表示します。未選択に戻すと店舗一覧を表示します。</p>
+          <div id="benefit-selected-store-status" aria-live="polite" aria-busy="false" hidden></div>
+          <button id="benefit-post-start" class="button button-primary" type="button" disabled>この店舗の先着特典を投稿</button>
+          <p id="benefit-picker-status" role="status"></p>
+        </div>
+        <div id="benefit-selected-designs"></div>
+        <div id="benefit-overview-list" aria-live="polite"></div>
+        <button id="benefit-load-more" type="button" class="button button-secondary" hidden>さらに表示</button>
+      </section>
       <section id="detail-data-view" class="result-view-panel" role="tabpanel" aria-labelledby="detail-data-tab" data-view-panel="details" hidden><h2>詳しい集計</h2><p>抽選の回数・当選率は、抽選詳細まで入力された投稿による参考データです。</p><div id="legacy-statistics"></div></section>
 
       <section id="store-browser" class="store-section result-view-panel" role="tabpanel" aria-labelledby="store-browser-tab" data-view-panel="stores">

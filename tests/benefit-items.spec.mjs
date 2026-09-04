@@ -21,6 +21,85 @@ test.beforeEach(async({page})=>{
 test.afterEach(async({page})=>expect(errors.get(page)).toEqual([]));
 async function openForm(page){await page.goto("/?store=kura-664");await page.locator(`[data-open-benefit="${selected.id}"]`).click();}
 async function axe(page,selector){const r=await new AxeBuilder({page}).include(selector).analyze();expect(r.violations.filter(v=>["serious","critical"].includes(v.impact))).toEqual([]);}
+function emptyStoreResponse(url){
+  const b=benefits.find(b=>b.id===new URL(url).searchParams.get("benefit"))??selected;
+  const empty={latest:null,last24h:{available:0,unavailable:0,unknown:0},conflicting:false};
+  return {benefits,selected:b,items:[{...b,...empty,items:b.items.map(i=>({...i,...empty}))}]};
+}
+
+test("selected store with no reports shows every design as unconfirmed; mobile, keyboard and posting remain usable",async({page},info)=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.route("**/api/stores/kura-77/benefits?*",r=>r.fulfill({json:emptyStoreResponse(r.request().url())}));
+  await page.goto("/");await page.locator("#benefits-tab").click();
+  await expect(page.locator("#benefit-post-start")).toBeDisabled();
+  await page.getByLabel("状況を見る・投稿する店舗").selectOption("kura-77");
+  const panel=page.locator("#benefit-selected-store-status");
+  await expect(panel.getByRole("heading",{name:"川越店の先着特典"})).toBeVisible();
+  await expect(panel.locator(".benefit-item-card")).toHaveCount(4);
+  for(const i of selected.items){
+    const card=panel.locator(`[data-benefit-design="${i.id}"]`);
+    await expect(card).toContainText("報告なし");await expect(card).toContainText("在庫状況は未確認です");
+    await expect(card).not.toContainText("最新報告：");await expect(card.locator("img")).toHaveAttribute("src",i.imageAsset);
+  }
+  await expect(page.locator("#benefit-overview-list")).toBeHidden();
+  await expect(page.locator("#benefit-selected-designs")).toBeHidden();
+  await panel.scrollIntoViewIfNeeded();
+  await panel.locator("img").evaluateAll(async imgs=>{await Promise.all(imgs.map(i=>i.decode()));await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));});
+  await page.screenshot({path:info.outputPath("selected-store-no-reports-mobile.png")});await axe(page,"#benefits-view");
+  await page.setViewportSize({width:320,height:740});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.locator("#benefit-post-start").focus();await page.keyboard.press("Enter");
+  await expect(page.locator("#benefit-dialog")).toBeVisible();await expect(page.locator("#benefit-dialog")).toContainText("川越店");
+  await expect(page.locator("#benefit-item-picker img")).toHaveCount(4);
+  await page.keyboard.press("Escape");await expect(page.locator("#benefit-post-start")).toBeFocused();
+  await page.locator("#benefit-post-store").selectOption("");
+  await expect(panel).toBeHidden();await expect(page.locator("#benefit-overview-list")).toBeVisible();await expect(page.locator("#benefit-post-start")).toBeDisabled();
+});
+
+test("selected-store statuses follow design and benefit filters, keep legacy separate, and refresh after posting",async({page})=>{
+  await page.goto("/");await page.locator("#benefits-tab").click();await page.locator("#benefit-post-store").selectOption("kura-664");
+  const panel=page.locator("#benefit-selected-store-status");
+  await expect(panel).toContainText("新宿靖国通り店の先着特典");
+  await expect(panel.locator(`[data-benefit-design="${ids[0]}"]`)).toContainText("直近の報告が分かれています");
+  await expect(panel.locator(`[data-benefit-design="${ids[1]}"]`)).toContainText("最新報告：配布終了");
+  await expect(panel.locator(`[data-benefit-design="${ids[2]}"]`)).toContainText("報告なし");
+  await expect(panel.locator(`[data-benefit-design="${ids[3]}"]`)).toContainText("古い情報です");
+  await page.locator("#benefit-item-select").selectOption(ids[1]);
+  await expect(panel.locator(".benefit-item-card")).toHaveCount(1);await expect(panel.locator(".benefit-item-card")).toContainText("ハチワレ");
+  await page.locator("#benefit-item-select").selectOption("legacy");
+  await expect(panel.locator(".benefit-item-card")).toHaveCount(0);await expect(panel.locator(".benefit-legacy-status")).toHaveAttribute("open","");
+  await expect(panel).toContainText("配布終了 9件");
+  await page.locator("#benefit-item-select").selectOption("");
+  await page.locator("#benefit-select").selectOption(benefits[2].id);
+  await expect(page.locator("#benefit-post-store")).toHaveValue("kura-664");
+  await expect(panel.locator(`[data-benefit-design="${benefits[2].items[0].id}"]`)).toBeVisible();await expect(panel).toContainText("から開始予定です");
+  await page.locator("#benefit-select").selectOption(selected.id);
+  await expect(panel.locator(`[data-benefit-design="${ids[0]}"]`)).toContainText("直近の報告が分かれています");
+  await page.route("**/api/stores/kura-664/benefits?*",r=>r.fulfill({json:emptyStoreResponse(r.request().url())}));
+  await page.evaluate(()=>document.dispatchEvent(new Event("benefit-updated")));
+  await expect(panel.locator(`[data-benefit-design="${ids[0]}"]`)).toContainText("報告なし");
+  await expect(page.locator("#benefit-post-store")).toHaveValue("kura-664");
+  await page.locator("#benefit-search-submit").click();await expect(panel).toBeHidden();await expect(page.locator("#benefit-post-store")).toHaveValue("");
+});
+
+test("stale store responses cannot replace current selection; failure is distinct from no reports and can retry",async({page})=>{
+  let release,failed=true;
+  await page.route("**/api/stores/kura-77/benefits?*",async r=>{await new Promise(resolve=>release=resolve);await r.fulfill({json:emptyStoreResponse(r.request().url())});});
+  await page.goto("/");await page.locator("#benefits-tab").click();
+  const pending=page.waitForRequest(r=>r.url().includes("/api/stores/kura-77/benefits"));
+  await page.locator("#benefit-post-store").selectOption("kura-77");await pending;
+  const panel=page.locator("#benefit-selected-store-status");await expect(panel).toHaveAttribute("aria-busy","true");
+  await page.locator("#benefit-post-store").selectOption("kura-664");
+  await expect(panel).toContainText("直近の報告が分かれています");
+  const finished=page.waitForResponse(r=>r.url().includes("/api/stores/kura-77/benefits"));release();await finished;
+  await expect(panel).not.toContainText("川越店");await expect(panel).toContainText("新宿靖国通り店");
+  await page.route("**/api/stores/kura-77/benefits?*",r=>r.fulfill({json:failed?{items:[]}:emptyStoreResponse(r.request().url())}));
+  await page.locator("#benefit-post-store").selectOption("kura-77");
+  await expect(panel.getByRole("alert")).toContainText("報告の有無はまだ確認できていません");
+  await expect(panel.locator(".benefit-empty")).toHaveCount(0);await expect(panel).toHaveAttribute("aria-busy","false");
+  failed=false;await panel.getByRole("button",{name:"状況を再読み込み"}).focus();await page.keyboard.press("Enter");
+  await expect(panel.locator(".benefit-item-card")).toHaveCount(4);await expect(panel).toContainText("在庫状況は未確認です");await expect(panel.getByRole("alert")).toHaveCount(0);
+});
 
 test("top fetches only summary; design counts, links and item/prefecture/store-name filters",async({page},info)=>{
   await page.setViewportSize({width:390,height:844});const requests=[];page.on("request",r=>requests.push(r.url()));
