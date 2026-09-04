@@ -580,6 +580,8 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
   #benefit-submit { font-size: .9rem; white-space: nowrap; padding-inline: 10px; }
 }
 @media (max-width: 360px) {
+  .header-inner { flex-wrap: wrap; padding-block: 10px; }
+  .header-actions { flex-wrap: wrap; justify-content: flex-end; margin-left: auto; max-width: 100%; }
   .goods-stepper button { width: 44px; flex-basis: 44px; }
   .goods-stepper input { width: 26px; }
   .goods-input-card { padding-inline: 5px; }
