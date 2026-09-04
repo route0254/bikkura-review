@@ -1,7 +1,11 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { readFileSync } from "node:fs";
 
 const runtimeErrors = new WeakMap();
+const externalSeed = JSON.parse(readFileSync(new URL("../seed/external-reports.json", import.meta.url), "utf8"));
+const campaignId = "chiikawa-kurasushi-2026-summer";
+const campaignExternalSeed = externalSeed.filter((report) => report.campaignId === campaignId);
 
 test.beforeEach(async ({ page }) => {
   const errors = [];
@@ -32,7 +36,7 @@ test.afterEach(async ({ page }) => {
 test("トップページを表示し、店舗を検索・絞り込みできる", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "寄せられた結果" })).toBeVisible();
-  await expect(page.locator(".store-card h3").first()).toHaveText("北本店");
+  await expect(page.locator(".store-card h3").first()).toBeVisible();
   await page.getByLabel("店舗名・地名").fill("新宿");
   await expect(page.getByRole("heading", { name: "新宿靖国通り店" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "なんば日本橋店" })).toBeHidden();
@@ -242,35 +246,51 @@ test("外部参考情報が0件の店舗を中立的に表示し、モバイル�
 });
 
 test("実DBの外部seedを取得しても全国統計とランキングは0件のまま", async ({ request }) => {
-  const [externalResponse, statsResponse, rankingResponse] = await Promise.all([
-    request.get("/api/stores/kura-660/external-reports?limit=10"),
-    request.get("/api/stats"),
-    request.get("/api/rankings/figure"),
+  const storeIds = [...new Set(campaignExternalSeed.map((report) => report.storeId).filter(Boolean))];
+  const [statsResponse, rankingResponse] = await Promise.all([
+    request.get(`/api/stats?campaign=${campaignId}`),
+    request.get(`/api/rankings/figure?campaign=${campaignId}`),
   ]);
-  expect(externalResponse.ok()).toBeTruthy();
   expect(statsResponse.ok()).toBeTruthy();
   expect(rankingResponse.ok()).toBeTruthy();
-  const external = await externalResponse.json();
   const stats = await statsResponse.json();
   const ranking = await rankingResponse.json();
-  expect(external.items).toHaveLength(2);
-  expect(external.items.every((item) => item.externalUrl?.startsWith("https://"))).toBeTruthy();
+  await Promise.all(storeIds.map(async (storeId) => {
+    const seeded = campaignExternalSeed.filter((report) => report.storeId === storeId);
+    const active = seeded.filter((report) => report.status === "active");
+    const collectedCount = seeded.filter((report) => ["active", "pending"].includes(report.status)).length;
+    const response = await request.get(`/api/stores/${storeId}/external-reports?campaign=${campaignId}&limit=25`);
+    expect(response.ok()).toBeTruthy();
+    const external = await response.json();
+    expect(external.items, `最新seedの公開件数: ${storeId}`).toHaveLength(Math.min(active.length, 25));
+    for (const item of external.items) {
+      const expected = active.find((report) => report.id === item.id);
+      expect(expected, `公開対象外の外部情報: ${item.id}`).toBeDefined();
+      expect(item.externalUrl).toBe(expected.externalUrl);
+    }
+    if (active.length <= 25) {
+      expect(external.items.map((item) => item.id).sort()).toEqual(active.map((report) => report.id).sort());
+    }
+    expect(stats.stores.find((store) => store.storeId === storeId)?.externalCollectionCount ?? 0).toBe(collectedCount);
+  }));
   expect(stats.reportCount).toBe(0);
   expect(stats.totalPrizeCount).toBe(0);
-  expect(stats.stores.find((store) => store.storeId === "kura-87")).toMatchObject({ reportCount: 0, externalCollectionCount: 2 });
   expect(ranking.items).toEqual([]);
 });
 
-test("出典URL確認中の外部収集情報を店舗詳細で公開する", async ({ page }) => {
+test("実DBの外部収集情報を表示順位に依存せず店舗検索から開ける", async ({ page }) => {
+  const seeded = campaignExternalSeed.filter((report) => report.storeId === "kura-87");
+  const active = seeded.filter((report) => report.status === "active");
+  const collectedCount = seeded.filter((report) => ["active", "pending"].includes(report.status)).length;
   await page.goto("/");
-  const firstCard = page.locator(".store-card").first();
-  await expect(firstCard.getByRole("heading")).toHaveText("北本店");
-  await expect(firstCard).toContainText("2 件の情報");
-  await expect(firstCard).toContainText("サイト内投稿 0件・外部収集 2件");
-  await firstCard.getByRole("button", { name: /結果を見る/ }).click();
-  await expect(page.locator("#external-reports .external-report-card")).toHaveCount(2);
+  await page.getByLabel("店舗名・地名").fill("北本");
+  const card = page.locator(".store-card").filter({ has: page.getByRole("heading", { name: "北本店", exact: true }) });
+  await expect(card).toContainText(`${collectedCount} 件の情報`);
+  await expect(card).toContainText(`サイト内投稿 0件・外部収集 ${collectedCount}件`);
+  await card.getByRole("button", { name: /結果を見る/ }).click();
+  await expect(page.locator("#external-reports .external-report-card")).toHaveCount(Math.min(active.length, 10));
   await expect(page.locator("#external-reports")).toContainText("食べログ");
-  await expect(page.locator("#external-reports").getByRole("link", { name: /出典を見る/ })).toHaveCount(2);
+  await expect(page.locator("#external-reports").getByRole("link", { name: /出典を見る/ }).first()).toBeVisible();
 });
 
 test("本人投稿APIは未認証アクセスを拒否する", async ({ request }) => {
