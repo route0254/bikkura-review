@@ -5,6 +5,7 @@ const root = new URL("../", import.meta.url);
 const stores = JSON.parse(await readFile(new URL("data/stores.json", root), "utf8"));
 const campaigns = JSON.parse(await readFile(new URL("data/campaigns.json", root), "utf8"));
 const benefits = JSON.parse(await readFile(new URL("data/benefits.json", root), "utf8"));
+const benefitItems = JSON.parse(await readFile(new URL("data/benefit-items.json", root), "utf8"));
 const errors = [];
 
 function checkUnique(items, label) {
@@ -19,7 +20,12 @@ function checkUnique(items, label) {
 checkUnique(stores, "stores");
 checkUnique(campaigns, "campaigns");
 checkUnique(benefits, "benefits");
-for (const item of [...benefits, ...campaigns.flatMap((c)=>c.prizeItems??[])]) {
+checkUnique(benefitItems, "benefitItems");
+checkUnique(benefitItems.map((i)=>({id:`${i.benefitId}/${i.slug}`})), "benefitItemSlugs");
+for (const item of benefitItems) {
+  if (!benefits.some((b)=>b.id===item.benefitId) || !/^[a-z0-9-]+$/.test(item.slug) || !item.name || typeof item.active!=="boolean" || !Number.isInteger(item.sortOrder)) errors.push(`${item.id}: 個別特典マスターが不正です`);
+}
+for (const item of [...benefits, ...benefitItems, ...campaigns.flatMap((c)=>c.prizeItems??[])]) {
   if (item.imageAsset != null) {
     if (safeImageAsset(item.imageAsset) !== item.imageAsset) errors.push(`${item.id}: imageAsset はプロジェクト内の画像パスにしてください`);
     else if (!(await stat(new URL(item.imageAsset.slice(1), root)).catch(() => null))?.isFile()) errors.push(`${item.id}: imageAsset のファイルが存在しません`);

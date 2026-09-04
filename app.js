@@ -12,7 +12,7 @@ import { initializeBenefitUI, loadStoreBenefits } from "/lib/benefits-ui.js";
 import { goodsMarkup, renderGoodsInput, goodsFormPayload, initializeGoodsUI, goodsContext, goodsConfirmationMarkup, updateGoodsTotals } from "/lib/goods-ui.js";
 import { normalizeGoodsPayload } from "/lib/goods.js";
 import { initializeBenefitOverview, loadBenefitTeaser, loadBenefitOverview, showBenefitView, populateBenefitPrefectures } from "/lib/benefits-overview-ui.js";
-import { BENEFIT_LABELS } from "/lib/benefits.js";
+import { benefitStatusLabel } from "/lib/benefits.js";
 
 const STORE_RENDER_BATCH_SIZE = 60;
 const state = { stores: [], campaigns: [], campaign: null, stats: null, selectedStoreId: null, lastTrigger: null, visibleStoreCount: STORE_RENDER_BATCH_SIZE, auth: { enabled: false, authenticated: false }, posting: null, rankingLoaded: false, prefecturesLoaded: false, resultView: "stores", userLocation: null };
@@ -725,12 +725,12 @@ async function loadMyBenefits() {
     const response = await fetch("/api/me/benefit-reports?limit=50", { headers: { Accept: "application/json", ...await authHeaders() }, cache: "no-store" });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error ?? "読み込めませんでした。");
-    target.innerHTML = result.items?.length ? result.items.map((r) => `<article class="my-report-card"><h4>${escapeHtml(r.storeName)}・${escapeHtml(r.benefitName)}</h4><p>${escapeHtml(BENEFIT_LABELS[r.availability])}</p><time>${escapeHtml(new Date(r.observedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }))}（日本時間）</time><p>${escapeHtml({ active: "公開中", pending: "確認中", hidden: "非表示", withdrawn: "取り下げ済み" }[r.status] ?? r.status)}</p>${r.status === "withdrawn" ? "" : `<button type="button" class="button button-secondary" data-withdraw-benefit="${escapeHtml(r.id)}">特典報告を取り下げる</button>`}</article>`).join("") : "先着特典の投稿はまだありません。";
+    target.innerHTML = result.items?.length ? result.items.map((r) => `<article class="my-report-card"><h4>${escapeHtml(r.storeName)}・${escapeHtml(r.benefitName)}</h4>${r.items?.length ? `<ul>${r.items.map((i)=>`<li>${escapeHtml(i.name)}：${escapeHtml(benefitStatusLabel(i))}${i.receivedQuantity!=null?`（${i.receivedQuantity}個）`:""}</li>`).join("")}</ul><p>取り下げはこの投稿の全絵柄が対象です。</p>` : `<p>絵柄不明・特典全体：${escapeHtml(benefitStatusLabel(r))}</p>`}<time>${escapeHtml(new Date(r.observedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }))}（日本時間）</time><p>${escapeHtml({ active: "公開中", pending: "確認中", hidden: "非表示", withdrawn: "取り下げ済み" }[r.status] ?? r.status)}</p>${r.status === "withdrawn" ? "" : `<button type="button" class="button button-secondary" data-withdraw-benefit="${escapeHtml(r.id)}">特典報告を取り下げる</button>`}</article>`).join("") : "先着特典の投稿はまだありません。";
   } catch (error) { target.textContent = `先着特典の投稿を取得できませんでした：${error.message}`; }
 }
 
 async function withdrawOwnBenefit(button) {
-  if (!confirm("この先着特典の報告を取り下げますか？元データは削除しません。")) return;
+  if (!confirm("この投稿の先着特典報告をすべて取り下げますか？複数柄を含む場合は全絵柄が対象です。元データは削除しません。")) return;
   button.disabled = true;
   try {
     const response = await fetch(`/api/me/benefit-reports/${encodeURIComponent(button.dataset.withdrawBenefit)}/withdraw`, { method: "POST", headers: { Accept: "application/json", ...await authHeaders() } });

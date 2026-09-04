@@ -490,6 +490,24 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
 .benefit-store-report h3 { margin-top: 0; font-size: 1rem; }
 .benefit-store-report p, .benefit-store-report time { font-size: .8rem; }
 .benefit-conflict { color: #785718; background: #fff0bf; padding: 8px; border-radius: 6px; font-weight: 700; }
+.benefit-design-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin: 16px 0; }
+.benefit-item-card, .benefit-item-input { min-width: 0; border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: #fff; }
+.benefit-item-card h4 { margin: 8px 0; font-size: .95rem; }
+.benefit-item-card p, .benefit-item-card time { font-size: .78rem; overflow-wrap: anywhere; }
+.benefit-item-card .button { width: 100%; font-size: .78rem; padding: 10px; white-space: normal; }
+.benefit-image-choice { display: block; text-align: center; cursor: pointer; border-radius: 8px; }
+.benefit-image-choice:focus-within { outline: 3px solid var(--pink); outline-offset: 3px; }
+.benefit-image-choice > span { display: flex; align-items: center; justify-content: center; min-height: 44px; gap: 4px; font-weight: 700; }
+.benefit-image-choice input { width: 20px; height: 20px; }
+.benefit-item-input.is-selected { border: 2px solid var(--pink); padding: 11px; background: #fff8fb; }
+.benefit-item-input .field { margin-top: 12px; font-size: .78rem; min-width: 0; }
+.benefit-item-input select, .benefit-item-input input[type=number] { width: 100%; min-width: 0; font-size: 16px; }
+#benefit-item-picker [hidden], #benefit-item-picker[hidden], #benefit-legacy-fields[hidden], #benefit-scope-option[hidden] { display: none; }
+#benefit-legacy-fields > .field { margin-top: 16px; }
+#benefit-item-picker .benefit-design-grid, #store-benefits .benefit-design-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.benefit-store-report > .benefit-item-card { max-width: 380px; }
+.benefit-legacy-status { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+@media(max-width:600px) { .benefit-design-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; } .benefit-item-card, .benefit-item-input { padding: 9px; } .benefit-item-input.is-selected { padding: 8px; } }
 .goods-input-category { border-bottom: 1px solid var(--line); padding-block: 10px; }
 .goods-input-category > summary { display: flex; justify-content: space-between; padding: 12px 2px; min-height: 48px; font-weight: 750; cursor: pointer; }
 .goods-input-category > summary::before { content: '＋'; margin-right: 8px; }

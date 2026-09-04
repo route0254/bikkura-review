@@ -102,11 +102,22 @@ pnpm run db:seed
 - 金額リスクは10万円以上、極端に小さい金額/景品比、同一日次識別子での短時間の極端金額の繰り返しをsoft加点。単一要因では拒否・pendingにせず、複数要因の合算を既存risk_scoreへ渡します。
 - migration `0011_goods_experience.sql` は識別フラグ、画像参照、特典受取個数、確定分アイテム表、特典withdrawal表・読み取りVIEW・索引の追加のみ。既存reports/prizesは再構築・変換しません。本番は0011→画像マスターの差分→Pagesの順。
 
+## 絵柄別の先着特典（0012）
+
+- `data/benefit-items.json` にミニ巾着・湯呑み・寿司皿の計12絵柄をstable IDで登録。提供manifestの名前・カテゴリと画像を確認し、`public/bonuses/` の識別用イラストを参照します。既存ビッくらポン景品21点のマスター・画像は変更しません。
+- `0012_benefit_items.sql` は `benefit_items`、`benefit_report_items`、必要な索引・FK・UNIQUE、内部risk理由、公開用VIEWの追加だけです。既存報告・景品は削除せず、絵柄への推測backfillも行いません。
+- 投稿は画像を選んで複数柄を一括送信できます。受取・配布中の案内・店頭表示・終了・不明を区別し、未選択柄は送信しません。絵柄不明・特典全体の従来入力も残します。
+- `POST /api/benefit-reports` は従来payloadに加え `items:[{benefitItemId,availability,observationType,receivedQuantity}]` を受付。1親報告＋選択明細を1つのbatchで保存し、複数柄でも日次枠は1件。全体のavailabilityとの同時送信は拒否します。認証・Turnstile・BAN・restrictedを継続利用。同一内容の5分以内再送を防ぎ、同じ柄の相反報告を短時間に繰り返す場合はpendingにします（従来全体報告の重複制限は1時間）。
+- `GET /api/benefits/latest?summary=1` は現在弾の4絵柄の24時間内終了報告店舗数などだけ返し、トップで店舗履歴を取得しません。通常一覧は `benefit, item, prefecture, q, store, limit, offset` で絞り込み。`item=legacy` は絵柄不明・特典全体のみ。最大60行でページングします。
+- `GET /api/stores/:id/benefits?current=1` または `benefit=ID` は指定店舗の対象特典だけ取得。各柄の最新日時・24時間件数・矛盾・鮮度を表示し、旧報告は別の折りたたみ欄に表示します。絵柄マスターはこれらのAPIの `benefits[].items` から共通利用できます。
+- 自分の特典投稿APIは絵柄明細を返します。既存withdrawal APIで親投稿全体を取り下げ、同時投稿した全柄を公開VIEWから即除外します。原本・日次使用枠は保持します。通常グッズ・当選率・ランキングには含めません。
+- 手順・対応表・非表示と復旧は [先着特典データ運用](docs/BENEFIT-ITEMS.md)。ローカルはmigration→seed→`pnpm run verify`、本番は既存データ確認→0012→特典アイテム12件だけseed→最後に1回のPages反映です。
+
 #### 画像の追加・差し替え
 
 `data/campaigns.json` の各prizeItemと `data/benefits.json` に `imageAsset` を設定します。今回の景品21種は、ユーザー提供の識別用イラストを日本語名・カテゴリと照合して既存stable IDへ紐付けています（[対応表](docs/PRIZE-ASSETS.md)）。実物写真ではない旨をUIに表示し、公式写真の収集・転載はしていません。実行時はこのマスターを全国・店舗・投稿・確認で共通利用し、ファイル名からの自動推測は行いません。
 
-素材は `public/prizes/` に置き、`/public/prizes/figure/chiikawa.png` のようなローカル参照を設定してseedを再生成します。未設定・読込失敗時は共通プレースホルダへフォールバックします。画像未提供の先着特典は従来どおりです。外部URL・スクリプトURLを拒否し、マスターで参照したファイルの存在、alt・寸法・lazy loadingも検証します。本番への画像反映は承認後に画像参照だけを更新し、投稿や景品IDを変更しません。
+素材は景品が `public/prizes/`、個別特典が `public/bonuses/` です。マスターにローカル参照を設定してseedを再生成します。未設定・読込失敗時は共通プレースホルダへフォールバックします。外部URL・スクリプトURLを拒否し、マスターで参照したファイルの存在、alt・寸法・lazy loadingも検証します。投稿や景品IDは変更しません。
 
 
 - `GET /api/campaigns`
@@ -205,7 +216,7 @@ pnpm run build
 3. Firebase AuthenticationでGoogleプロバイダーを有効化
 4. Firebase Authorized domainsへ `review.chiikatsu-map.com` を追加（APIキーを制限している場合は同ドメインも許可）
 5. Cloudflare Pagesに `TURNSTILE_SECRET_KEY`、`RATE_LIMIT_SALT`、`ABUSE_HASH_SALT`、`USER_ID_SECRET` をSecretとして設定
-6. リモートD1へ `0011_goods_experience.sql` までmigrationを適用し、通常seed（特典マスタ含む）とexternal seedを投入
+6. リモートD1へ `0012_benefit_items.sql` までmigrationを適用し、初回のみ通常seed（個別特典マスタ含む）とexternal seedを投入。既存本番への更新は必要なマスター差分だけを適用
 7. Pagesを一度だけ再デプロイ
 8. 匿名投稿、Googleログイン、ログアウト、残り投稿件数、上限到達時の表示を確認
 9. `pending`投稿が公開集計・最近の投稿に含まれないことを確認

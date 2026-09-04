@@ -3,6 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { readFileSync } from "node:fs";
 const campaign=JSON.parse(readFileSync(new URL("../data/campaigns.json",import.meta.url)))[0];
 const masters=JSON.parse(readFileSync(new URL("../data/benefits.json",import.meta.url)));
+const benefitItems=JSON.parse(readFileSync(new URL("../data/benefit-items.json",import.meta.url)));
 const chiikawa="chiikawa-2026-figure-chiikawa",usagi="chiikawa-2026-figure-usagi";
 const errors=new WeakMap();
 const goods={reportCount:5,totalPrizes:5,categories:campaign.prizeCategories.map((c)=>({id:c.id,name:c.name,quantity:c.sortOrder===1?5:0,unknownDesignQuantity:0,items:campaign.prizeItems.filter((i)=>i.prizeCategoryId===c.id).map((i)=>({...i,quantity:i.id===chiikawa?2:i.id===usagi?3:0,share:null}))}))};
@@ -15,7 +16,7 @@ test.beforeEach(async({page})=>{
   await page.route("**/api/posting-status",r=>r.fulfill({json:{authenticated:false,accountStatus:"active",dailyLimit:5,remainingToday:5,canPost:true}}));
   await page.route("https://challenges.cloudflare.com/**",r=>r.fulfill({contentType:"application/javascript",body:"window.turnstile={render(el,o){queueMicrotask(()=>o.callback?.('token'));return 1},reset(){},getResponse(){return 'token'}}"}));
   await page.route("**/api/stats/items?*",r=>r.fulfill({json:goods}));
-  await page.route("**/api/benefits/latest?*",r=>r.fulfill({json:{benefits:masters,selected,items:[benefitRow],hasMore:false}}));
+  await page.route("**/api/benefits/latest?*",r=>r.fulfill({json:{benefits:masters,selected,items:[benefitRow],itemSummary:benefitItems.filter(i=>i.benefitId===selected.id).map(i=>({...i,unavailableStoreCount:2,conflictingStoreCount:1})),hasMore:false}}));
   await page.route("**/api/me/benefit-reports?*",r=>r.fulfill({json:{items:[]}}));
 });
 test.afterEach(async({page})=>expect(errors.get(page)).toEqual([]));
@@ -74,7 +75,7 @@ test("optional detailed draws remain and counts are validated without duplicate 
 test("benefit overview shows disagreement, ended reports, searchable posting and separate quantity",async({page},info)=>{
   await page.setViewportSize({width:390,height:844});let benefit,normal=0;
   await page.route("**/api/reports",r=>{normal++;return r.abort();});await page.route("**/api/benefit-reports",r=>{benefit=r.request().postDataJSON();return r.fulfill({json:{id:"benefit",status:"active"}});});
-  await page.goto("/");await expect(page.locator("#benefit-teaser")).toContainText("配布終了の報告");await expect(page.locator("#benefit-teaser")).toContainText("新宿靖国通り店");
+  await page.goto("/");await expect(page.locator("#benefit-teaser")).toContainText("配布終了報告のある店舗");await expect(page.locator("#benefit-teaser .benefit-item-card")).toHaveCount(4);await expect(page.locator("#benefit-teaser")).not.toContainText("新宿靖国通り店");
   await page.locator("[data-benefits-view]").first().click();await expect(page.locator("#benefit-overview-list")).toContainText("直近の報告が分かれています");await expect(page.locator("#benefit-overview-list")).toContainText("受け取れた 3件 / 配布終了 2件");
   await page.locator("#benefit-prefecture").selectOption("東京都");await page.locator("#benefit-post-store").selectOption("kura-664");await page.locator("#benefit-post-start").click();
   await page.locator("#benefit-availability").selectOption("available");await page.locator("#benefit-quantity").fill("2");await page.locator("#benefit-submit").click();await expect(page.locator("#benefit-form-status")).toContainText("共有しました");

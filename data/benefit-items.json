@@ -1,0 +1,110 @@
+[
+  {
+    "id": "chiikawa-2026-benefit-1-chiikawa",
+    "benefitId": "chiikawa-2026-benefit-1",
+    "slug": "chiikawa",
+    "name": "ちいかわ",
+    "imageAsset": "/public/bonuses/bonus_pouch/chiikawa.png",
+    "sortOrder": 1,
+    "active": true
+  },
+  {
+    "id": "chiikawa-2026-benefit-1-hachiware",
+    "benefitId": "chiikawa-2026-benefit-1",
+    "slug": "hachiware",
+    "name": "ハチワレ",
+    "imageAsset": "/public/bonuses/bonus_pouch/hachiware.png",
+    "sortOrder": 2,
+    "active": true
+  },
+  {
+    "id": "chiikawa-2026-benefit-1-usagi",
+    "benefitId": "chiikawa-2026-benefit-1",
+    "slug": "usagi",
+    "name": "うさぎ",
+    "imageAsset": "/public/bonuses/bonus_pouch/usagi.png",
+    "sortOrder": 3,
+    "active": true
+  },
+  {
+    "id": "chiikawa-2026-benefit-1-momonga",
+    "benefitId": "chiikawa-2026-benefit-1",
+    "slug": "momonga",
+    "name": "モモンガ",
+    "imageAsset": "/public/bonuses/bonus_pouch/momonga.png",
+    "sortOrder": 4,
+    "active": true
+  },
+  {
+    "id": "chiikawa-2026-benefit-2-chiikawa",
+    "benefitId": "chiikawa-2026-benefit-2",
+    "slug": "chiikawa",
+    "name": "ちいかわ",
+    "imageAsset": "/public/bonuses/bonus_yunomi/chiikawa.png",
+    "sortOrder": 1,
+    "active": true
+  },
+  {
+    "id": "chiikawa-2026-benefit-2-hachiware",
+    "benefitId": "chiikawa-2026-benefit-2",
+    "slug": "hachiware",
+    "name": "ハチワレ",
+    "imageAsset": "/public/bonuses/bonus_yunomi/hachiware.png",
+    "sortOrder": 2,
+    "active": true
+  },
+  {
+    "id": "chiikawa-2026-benefit-2-usagi",
+    "benefitId": "chiikawa-2026-benefit-2",
+    "slug": "usagi",
+    "name": "うさぎ",
+    "imageAsset": "/public/bonuses/bonus_yunomi/usagi.png",
+    "sortOrder": 3,
+    "active": true
+  },
+  {
+    "id": "chiikawa-2026-benefit-2-minna",
+    "benefitId": "chiikawa-2026-benefit-2",
+    "slug": "minna",
+    "name": "みんな",
+    "imageAsset": "/public/bonuses/bonus_yunomi/minna.png",
+    "sortOrder": 4,
+    "active": true
+  },
+  {
+    "id": "chiikawa-2026-benefit-3-chiikawa",
+    "benefitId": "chiikawa-2026-benefit-3",
+    "slug": "chiikawa",
+    "name": "ちいかわ",
+    "imageAsset": "/public/bonuses/bonus_plate/chiikawa.png",
+    "sortOrder": 1,
+    "active": true
+  },
+  {
+    "id": "chiikawa-2026-benefit-3-hachiware",
+    "benefitId": "chiikawa-2026-benefit-3",
+    "slug": "hachiware",
+    "name": "ハチワレ",
+    "imageAsset": "/public/bonuses/bonus_plate/hachiware.png",
+    "sortOrder": 2,
+    "active": true
+  },
+  {
+    "id": "chiikawa-2026-benefit-3-usagi",
+    "benefitId": "chiikawa-2026-benefit-3",
+    "slug": "usagi",
+    "name": "うさぎ",
+    "imageAsset": "/public/bonuses/bonus_plate/usagi.png",
+    "sortOrder": 3,
+    "active": true
+  },
+  {
+    "id": "chiikawa-2026-benefit-3-minna",
+    "benefitId": "chiikawa-2026-benefit-3",
+    "slug": "minna",
+    "name": "みんな",
+    "imageAsset": "/public/bonuses/bonus_plate/minna.png",
+    "sortOrder": 4,
+    "active": true
+  }
+]

@@ -2,15 +2,16 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync, readdirSync } from "node:fs";
 
 const root = new URL("../../", import.meta.url);
-export function sqliteFixture({ beforeLatest = false, beforeGoods = false } = {}) {
+export function sqliteFixture({ beforeLatest = false, beforeGoods = false, beforeBenefitItems = false } = {}) {
   const sqlite = new DatabaseSync(":memory:");
   for (const file of readdirSync(new URL("migrations/", root)).filter((p) => p.endsWith(".sql")).sort()) {
     if (beforeLatest && file >= "0010") continue;
     if (beforeGoods && file >= "0011") continue;
+    if (beforeBenefitItems && file >= "0012") continue;
     sqlite.exec(readFileSync(new URL(`migrations/${file}`, root), "utf8"));
   }
   const seed = readFileSync(new URL("seed/seed.sql", root), "utf8");
-  sqlite.exec(beforeLatest || beforeGoods ? seed.split("\n").filter((line) => !(beforeLatest && line.startsWith("INSERT INTO benefit_campaigns")) && !line.includes("SET image_asset=")).join("\n") : seed);
+  sqlite.exec(seed.split("\n").filter((line) => !(beforeLatest && line.startsWith("INSERT INTO benefit_campaigns")) && !((beforeLatest || beforeGoods) && line.includes("SET image_asset=")) && !((beforeLatest || beforeGoods || beforeBenefitItems) && line.startsWith("INSERT INTO benefit_items"))).join("\n"));
   const db = {
     prepare(sql) {
       const stmt = sqlite.prepare(sql);
