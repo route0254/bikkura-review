@@ -522,7 +522,7 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
 #posted-benefit { margin-top: 14px; }
 #store-goods .goods-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
 @media (max-width: 700px) {
-  .campaign-bar { padding: 14px 16px; }
+  .campaign-bar { padding: 10px 16px; }
   .campaign-bar h1 { font-size: 1rem; }
   .campaign-period { font-size: .75rem; margin: 5px 0; }
   .campaign-period span { display: none; }
@@ -550,6 +550,8 @@ select:disabled { color: var(--muted); background: var(--grey-soft); }
   .quick-actions { flex-wrap: nowrap; }
   .quick-actions .button { flex: 1; padding-inline: 8px; font-size: .75rem; }
   .site-intro p { line-height: 1.5; margin-bottom: 7px; }
+  .site-intro { padding-block: 5px 7px; }
+  .period-filter { margin-bottom: 12px; }
   .goods-region { min-width: 87px; }
   .goods-region select { width: 100%; max-width: 100px; }
   #benefit-submit { font-size: .9rem; white-space: nowrap; padding-inline: 10px; }
